@@ -1,0 +1,44 @@
+{
+  "milestone": "M2",
+  "kind": "sequential_baseline",
+  "model": "openai/whisper-large-v3",
+  "dtype": "float16",
+  "hardware": {
+    "device": "NVIDIA A40",
+    "vram_gb": 47.7,
+    "cuda": "12.8",
+    "torch": "2.11.0+cu128",
+    "count": 1
+  },
+  "host": {
+    "python": "3.10.12",
+    "platform": "Linux-6.8.0-65-generic-x86_64-with-glibc2.35"
+  },
+  "model_load_seconds": 3.76,
+  "clips": 50,
+  "audio_seconds": 1500.0,
+  "wall_seconds": 79.06,
+  "throughput_rps": 0.632,
+  "realtime_factor": 19.0,
+  "latency_ms": {
+    "mean": 1580.7,
+    "p50": 1594.5,
+    "min": 819.9,
+    "max": 2214.3
+  },
+  "decoded_tokens": {
+    "mean": 79.3,
+    "min": 33,
+    "max": 117
+  },
+  "quality": {
+    "wer": 0.016038266741699492,
+    "substitutions": 45,
+    "deletions": 5,
+    "insertions": 7,
+    "ref_words": 3554,
+    "clips": 50,
+    "worst_clip_wer": 0.13829787234042554
+  },
+  "note": "RunPod A40 48GB, driver 570.195.03, torch 2.11.0+cu128, fp16"
+}

@@ -30,7 +30,10 @@ def main() -> None:
     ap.add_argument("--clips", type=int, default=50)
     ap.add_argument("--seconds", type=float, default=30.0)
     ap.add_argument("--out", type=Path, default=Path("golden"))
-    ap.add_argument("--split", default="test.clean")
+    ap.add_argument("--dataset", default="openslr/librispeech_asr",
+                    help="namespaced repo id — huggingface_hub rejects bare canonical names")
+    ap.add_argument("--config", default="clean")
+    ap.add_argument("--split", default="test")
     args = ap.parse_args()
 
     try:
@@ -43,8 +46,26 @@ def main() -> None:
     audio_dir = args.out / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"loading librispeech_asr {args.split} (streaming)...")
-    ds = load_dataset("librispeech_asr", split=args.split, streaming=True)
+    # Streaming, so the 6GB test-clean archive is never fully downloaded — we consume ~25
+    # minutes of audio and stop. Candidates are tried in order because the canonical
+    # LibriSpeech repo has been renamed and restructured; pinning one path makes this script
+    # break silently a year from now.
+    candidates = [
+        (args.dataset, args.config, args.split),
+        (args.dataset, args.config, f"{args.split}.{args.config}"),
+        ("openslr/librispeech_asr", "clean", "test"),
+        ("librispeech_asr", "clean", "test.clean"),
+    ]
+    ds = None
+    for repo, config, split in candidates:
+        try:
+            print(f"loading {repo} config={config} split={split} (streaming)...")
+            ds = load_dataset(repo, config, split=split, streaming=True)
+            break
+        except Exception as e:  # noqa: BLE001
+            print(f"  no: {type(e).__name__}: {str(e)[:120]}")
+    if ds is None:
+        sys.exit("could not load any LibriSpeech variant — check network and datasets version")
 
     SR = 16000  # Whisper's rate. Never hardcode this elsewhere — read it from the clip.
     target = int(args.seconds * SR)
@@ -54,6 +75,38 @@ def main() -> None:
     buf_text: list[str] = []
     buf_len = 0
     made = 0
+    skipped_long = 0
+
+    def emit() -> None:
+        """Write the buffered utterances as one clip, silence-padded to exactly 30s.
+
+        NEVER splits an utterance. An earlier version filled the buffer past 30s and then cut
+        the audio at exactly 30s, which left a fragment of unreferenced speech at the end of
+        every clip; Whisper faithfully transcribed it and every one of those words scored as
+        an insertion. Measured baseline WER was 0.1504 with only 45 substitutions in 3631
+        words — the model was ~1.2% wrong and the reference construction supplied the other
+        14 points. A quality gate calibrated against that number would have been worthless.
+
+        Padding with silence rather than trimming keeps every request exactly one 30s encoder
+        window, so latency and throughput stay comparable across clips, while the reference
+        describes precisely the speech present in the audio.
+        """
+        nonlocal made
+        speech = np.concatenate(buf_audio)
+        clip = np.zeros(target, dtype=np.float32)
+        clip[: len(speech)] = speech
+        name = f"clip_{made:03d}.wav"
+        sf.write(audio_dir / name, clip, SR)
+        manifest.append({
+            "file": name,
+            "seconds": round(len(clip) / SR, 3),
+            "speech_seconds": round(len(speech) / SR, 3),
+            "sampling_rate": SR,
+            "reference": " ".join(buf_text),
+            "utterances": len(buf_text),
+        })
+        made += 1
+        print(f"  wrote {name}  ({len(speech)/SR:5.1f}s speech, {len(buf_text)} utterances)")
 
     for row in ds:
         if made >= args.clips:
@@ -63,40 +116,41 @@ def main() -> None:
             import librosa
             wave = librosa.resample(wave, orig_sr=row["audio"]["sampling_rate"], target_sr=SR)
 
+        if len(wave) > target:
+            # A single utterance longer than the encoder window cannot be represented without
+            # truncating either audio or reference. Drop it rather than create a clip whose
+            # reference describes speech the model never hears.
+            skipped_long += 1
+            continue
+
+        if buf_len + len(wave) > target:
+            emit()
+            buf_audio, buf_text, buf_len = [], [], 0
+            if made >= args.clips:
+                break
+
         buf_audio.append(wave)
         buf_text.append(row["text"].strip())
         buf_len += len(wave)
 
-        if buf_len >= target:
-            clip = np.concatenate(buf_audio)[:target]
-            name = f"clip_{made:03d}.wav"
-            sf.write(audio_dir / name, clip, SR)
-            manifest.append({
-                "file": name,
-                "seconds": round(len(clip) / SR, 3),
-                "sampling_rate": SR,
-                # reference covers the utterances that fit — the tail utterance is truncated
-                # by the 30s cut, so its words are dropped from the reference too. Keeping a
-                # reference for audio that is not in the clip would inflate deletions forever.
-                "reference": " ".join(buf_text[:-1]) if len(buf_text) > 1 else buf_text[0],
-                "utterances": len(buf_text) - 1 if len(buf_text) > 1 else 1,
-            })
-            made += 1
-            buf_audio, buf_text, buf_len = [], [], 0
-            print(f"  wrote {name}")
-
     if made < args.clips:
         print(f"warning: only produced {made}/{args.clips} clips — split exhausted")
+    if skipped_long:
+        print(f"skipped {skipped_long} utterances longer than {args.seconds}s")
 
     (args.out / "manifest.json").write_text(json.dumps({
-        "source": f"librispeech_asr/{args.split}",
+        "source": f"{args.dataset}/{args.config}/{args.split}",
         "sampling_rate": SR,
         "target_seconds": args.seconds,
+        "construction": "whole utterances only, silence-padded to target; never split",
         "clips": manifest,
     }, indent=2))
 
     total_min = sum(c["seconds"] for c in manifest) / 60
-    print(f"\n{made} clips, {total_min:.1f} minutes of audio -> {args.out}")
+    speech_min = sum(c["speech_seconds"] for c in manifest) / 60
+    print(f"\n{made} clips, {total_min:.1f} min total "
+          f"({speech_min:.1f} min speech, {100*speech_min/total_min:.0f}% speech density) "
+          f"-> {args.out}")
     print("commit golden/manifest.json; audio files are large — keep them out of git "
           "(git-lfs or regenerate from this script in CI).")
 
