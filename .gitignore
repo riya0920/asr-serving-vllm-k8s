@@ -1,0 +1,23 @@
+# Audio is large and regenerable from bench/build_golden.py — the manifest is the artifact,
+# not the wav files. CI rebuilds the set from the manifest's source + seed.
+golden/audio/
+*.wav
+*.flac
+
+# Model weights
+*.bin
+*.safetensors
+*.pt
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Raw timeseries from spike runs can be large; the summary JSON is committed, the
+# per-request CSV is not.
+results/*.csv
+results/**/raw/
+
+.DS_Store

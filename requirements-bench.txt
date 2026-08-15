@@ -1,0 +1,10 @@
+# Load generator only — runs anywhere, no GPU, no torch.
+# This is deliberately separate from the serving requirements so the spike test can be
+# driven from a machine that is not the machine under test. Running the load generator
+# on the box you are measuring steals CPU from the server and inflates your own p99.
+httpx>=0.27
+
+# Golden-set construction and the sequential baseline (GPU box only):
+#   pip install torch transformers datasets soundfile librosa numpy
+# Pin these on the GPU box against whatever CUDA build is in the image, and record the
+# resolved versions in the results artifact — gpu_info() in baseline_sequential.py does this.
