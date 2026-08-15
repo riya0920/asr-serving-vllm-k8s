@@ -1,0 +1,6 @@
+{
+  "_comment": "Placeholder. Generate the real thing on the GPU box once the model is known good: python ci/verify_weights.py --manifest model-manifest.json --update. The revision below MUST be replaced with the actual pinned commit SHA from huggingface.co/openai/whisper-large-v3 — verify_weights.py refuses to run against 'main'.",
+  "model_id": "openai/whisper-large-v3",
+  "revision": "REPLACE_WITH_PINNED_COMMIT_SHA",
+  "files": {}
+}

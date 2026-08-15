@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: asr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisper-asr
+  namespace: asr
+  labels:
+    app: whisper-asr
+spec:
+  selector:
+    app: whisper-asr
+  ports:
+    - name: http          # named port — the ServiceMonitor and Rollout analysis select on this
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whisper-asr
+  namespace: asr
+  labels:
+    app: whisper-asr
+spec:
+  # No replicas field on purpose. KEDA owns replica count via the HPA it creates; setting it
+  # here means every Argo CD sync fights the autoscaler and yanks the fleet back to a fixed
+  # size mid-spike. Argo CD is told to ignore this field too — see infra/argocd/.
+  selector:
+    matchLabels:
+      app: whisper-asr
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0   # never give up capacity to deploy; GPU pods are slow to replace
+  template:
+    metadata:
+      labels:
+        app: whisper-asr
+    spec:
+      terminationGracePeriodSeconds: 120   # let in-flight transcriptions finish on scale-down
+      containers:
+        - name: vllm-omni
+          image: ghcr.io/OWNER/asr-serving:REPLACED_BY_CI   # immutable digest, set by M7
+          args:
+            - --model=openai/whisper-large-v3
+            - --task=transcription
+            - --port=8000
+            - --max-num-seqs=32              # batch slots; must match the KEDA headroom math
+            - --gpu-memory-utilization=0.90
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1              # one GPU per pod, via the NVIDIA device plugin
+          startupProbe:
+            # The important probe. Loading Whisper-Large into VRAM takes minutes; without a
+            # generous startupProbe the liveness probe kills the pod mid-load and the
+            # deployment crash-loops forever while looking like an OOM.
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+            failureThreshold: 60             # up to 10 minutes to become live
+          readinessProbe:
+            # Gates traffic until weights are loaded. Without it, a scale-up event shows up
+            # as a burst of 503s instead of added capacity — the spike test would record the
+            # autoscaler making things worse.
+            httpGet: { path: /health, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 20
+            failureThreshold: 3
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: model-cache
+          # Node-local cache. Second and later pods on a node skip the multi-GB weight
+          # download entirely, which is the single biggest cold-start win available and the
+          # honest version of the "pre-pull images" mitigation: on a single multi-GPU node
+          # the image is already local anyway, so weights are what actually cost time.
+          hostPath:
+            path: /var/cache/hf
+            type: DirectoryOrCreate
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: whisper-asr
+  namespace: asr
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: whisper-asr
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s     # must be <= KEDA pollingInterval, or KEDA scales on stale numbers
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: whisper-asr
+  namespace: asr
+spec:
+  minAvailable: 2      # matches KEDA minReplicaCount — node drains must not empty the fleet
+  selector:
+    matchLabels:
+      app: whisper-asr

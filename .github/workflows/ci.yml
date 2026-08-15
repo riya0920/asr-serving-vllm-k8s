@@ -1,0 +1,144 @@
+name: ci
+
+# Three gates, in cost order — cheapest failure first, so a typo never burns GPU minutes.
+#
+#   1. fast      - lint, unit tests for the WER math, YAML/manifest validation   (~1 min, free)
+#   2. quality   - WER gate over the golden set against a live server            (GPU runner)
+#   3. perf      - short load test, assert throughput and p99 have not regressed (GPU runner)
+#
+# Gate 3 exists because a deployment that is perfectly accurate and 40% slower is also a
+# failed deployment, and nothing else in this pipeline would notice.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install httpx pyyaml ruff
+
+      - name: Lint
+        run: ruff check bench ci infra/stub
+
+      - name: Unit-test the WER math
+        # The gate that guards production is itself guarded. If corpus_wer is wrong, gate 2
+        # is decorative.
+        run: python ci/test_wer.py
+
+      - name: Validate manifests parse
+        run: python ci/validate_manifests.py
+
+  quality:
+    needs: fast
+    runs-on: [self-hosted, gpu]     # requires a GPU runner; see docs for setup
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify model artifact integrity
+        # Checksum before load. A truncated or swapped weight file can still load and still
+        # produce output — catching it here is far cheaper than inferring it from WER later.
+        run: python ci/verify_weights.py --manifest model-manifest.json
+
+      - name: Build image
+        run: |
+          docker build -t "${IMAGE}:${GITHUB_SHA}" .
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Start ephemeral server
+        run: |
+          docker run -d --gpus all --name asr-ci -p 8000:8000 "${IMAGE}:${GITHUB_SHA}"
+          # Whisper-Large takes minutes to load. Poll rather than sleep a fixed amount —
+          # a fixed sleep is either wasteful or flaky, and eventually both.
+          for i in $(seq 1 60); do
+            curl -sf localhost:8000/health && break
+            sleep 10
+          done
+          curl -sf localhost:8000/health || { docker logs asr-ci; exit 1; }
+
+      - name: Rebuild golden set
+        run: |
+          pip install -r requirements-bench.txt datasets soundfile librosa numpy
+          python bench/build_golden.py --clips 50 --out golden
+
+      - name: WER gate
+        run: |
+          python ci/wer_gate.py \
+            --url http://localhost:8000 \
+            --baseline results/m2_baseline_sequential.json \
+            --tolerance 0.02
+
+      - name: Load test — assert no perf regression
+        run: |
+          python bench/loadgen.py \
+            --url http://localhost:8000 --audio-dir golden/audio \
+            --profile steady --rps 20 --duration 60 \
+            --out results/ci_load.json \
+            --note "CI perf gate, commit ${GITHUB_SHA}"
+          python ci/perf_gate.py \
+            --current results/ci_load.json \
+            --baseline results/m3_vllm_batching.json \
+            --max-p99-ms 620 --max-regression 0.10
+
+      - name: Publish artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-results-${{ github.sha }}
+          path: results/ci_*.json
+
+      - name: Push image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push "${IMAGE}:${GITHUB_SHA}"
+          # Immutable tag only. No :latest — a mutable tag makes "what is actually running in
+          # prod" unanswerable, and makes rollback a guess.
+
+      - name: Teardown
+        if: always()
+        run: docker rm -f asr-ci || true
+
+  # Deployment is NOT in this pipeline, on purpose. CI decides whether an artifact is good;
+  # Argo CD decides what is running. The handoff is a commit to the config repo bumping the
+  # image digest, which is a reviewable, revertible pull request — see infra/argocd/.
+  promote:
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open image bump PR against the config repo
+        env:
+          GH_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
+        run: |
+          gh repo clone "${{ github.repository_owner }}/asr-serving-config" cfg
+          cd cfg
+          git checkout -b "bump-${GITHUB_SHA::7}"
+          yq -i ".spec.template.spec.containers[0].image = \"${IMAGE}:${GITHUB_SHA}\"" \
+            envs/dev/deployment.yaml
+          git commit -am "dev: bump to ${GITHUB_SHA::7}"
+          git push -u origin HEAD
+          gh pr create --fill --title "dev: bump to ${GITHUB_SHA::7}"

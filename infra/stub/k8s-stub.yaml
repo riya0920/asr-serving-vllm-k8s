@@ -1,0 +1,81 @@
+# The stub deployed under the SAME name, labels and port as the real thing, so the
+# ScaledObject, ServiceMonitor and Rollout analysis in infra/ apply unmodified. The only
+# differences from infra/k8s/deployment.yaml are the image, the absence of a GPU resource
+# request, and a much shorter simulated model-load time.
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisper-asr
+  namespace: asr
+  labels:
+    app: whisper-asr
+spec:
+  selector:
+    app: whisper-asr
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whisper-asr
+  namespace: asr
+  labels:
+    app: whisper-asr
+spec:
+  selector:
+    matchLabels:
+      app: whisper-asr
+  template:
+    metadata:
+      labels:
+        app: whisper-asr
+    spec:
+      containers:
+        - name: stub
+          image: python:3.12-slim
+          command: ["python", "/src/stub_asr_server.py"]
+          args:
+            - --port=8000
+            - --slots=32           # matches --max-num-seqs in the real deployment
+            - --service-ms=700
+            - --load-seconds=20    # scaled-down stand-in for real model load; long enough
+                                   # that readiness gating is observable during a scale-up
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 2
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          volumeMounts:
+            - name: src
+              mountPath: /src
+      volumes:
+        - name: src
+          configMap:
+            name: stub-src
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: whisper-asr
+  namespace: asr
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: whisper-asr
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 5s

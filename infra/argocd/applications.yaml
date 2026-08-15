@@ -1,0 +1,129 @@
+# GitOps delivery. The division of labour, stated precisely because these two get conflated:
+#
+#   Argo CD       decides WHAT should be running — reconciles each cluster against git
+#   Argo Rollouts decides HOW a new version replaces the old — canary steps and analysis
+#
+# Nobody runs `kubectl apply` against prod, including me. A deploy is a pull request against
+# the config repo, which makes every production change reviewed, diffable, and revertible by
+# reverting a commit.
+#
+# The three environments are the same manifests with a widening blast radius. dev syncs
+# automatically; staging syncs automatically; prod requires a human to merge the PR.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: asr-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: asr
+  source:
+    repoURL: https://github.com/riya0920/asr-serving-config.git
+    targetRevision: main
+    path: envs/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: asr
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true      # dev is allowed to snap back instantly from manual drift
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+    # KEDA's HPA owns replica count. Without this, Argo sees the live replica count differ
+    # from git, calls it drift, and resets the fleet mid-spike — an autoscaler and a
+    # reconciler fighting over the same field, with the outage happening at peak load.
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: asr-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: asr
+  source:
+    repoURL: https://github.com/riya0920/asr-serving-config.git
+    targetRevision: main
+    path: envs/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: asr
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers: [/spec/replicas]
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers: [/spec/replicas]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: asr-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: asr
+  source:
+    repoURL: https://github.com/riya0920/asr-serving-config.git
+    targetRevision: main
+    path: envs/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: asr
+  syncPolicy:
+    # NO automated block. Prod syncs when a human merges the promotion PR. The canary and
+    # its analysis still run automatically once the sync starts — the human gate is on
+    # "should this version go to prod at all", not on "is it healthy", which is a question
+    # a machine answers better and faster than a person watching a dashboard.
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers: [/spec/replicas]
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers: [/spec/replicas]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: asr
+  namespace: argocd
+spec:
+  description: ASR serving stack
+  sourceRepos:
+    - https://github.com/riya0920/asr-serving-config.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: asr
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

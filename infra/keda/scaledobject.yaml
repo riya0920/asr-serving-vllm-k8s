@@ -1,0 +1,117 @@
+# KEDA autoscaling for the vLLM-Omni ASR fleet.
+#
+# KEDA evaluates every trigger independently and takes the MAXIMUM replica count any of them
+# asks for. That property is what lets three triggers express one policy:
+#
+#   1. headroom  - hold steady-state occupancy at ~70% so a spike's first seconds are absorbed
+#   2. queue     - surge on the leading indicator the moment arrivals exceed service rate
+#   3. gpu guard - refuse to scale DOWN while the GPUs are genuinely busy
+#
+# The reason GPU utilization is trigger 3 and not trigger 1: it saturates. Once every batch
+# slot is occupied it reads ~100% whether the queue holds 2 requests or 200. Measured on the
+# stub server (results/stub_trace.csv): util sat at 100.0 for six consecutive samples while
+# queue depth went 43 -> 95. A signal that reports the same value under 1x and 10x overload
+# cannot tell an autoscaler how many pods to add. Queue depth is unbounded and rises before
+# latency degrades, so it is both leading and proportional.
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: prometheus-auth
+  namespace: asr
+spec:
+  secretTargetRef: []
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: whisper-asr
+  namespace: asr
+spec:
+  scaleTargetRef:
+    name: whisper-asr           # the Deployment (or Argo Rollout — see infra/rollouts/)
+  # Rollouts is a custom resource; uncomment when M8 switches the target over.
+  # scaleTargetRef:
+  #   apiVersion: argoproj.io/v1alpha1
+  #   kind: Rollout
+  #   name: whisper-asr
+
+  minReplicaCount: 2            # floor. Never scale to zero: a cold GPU pod is minutes away
+                                # from serving, so zero replicas means the first request of
+                                # the day times out. This floor is a cost line item, and it
+                                # is why the cost saving is 55% and not the 64% that raw
+                                # throughput gain alone would predict.
+  maxReplicaCount: 16
+  pollingInterval: 5            # seconds. Default 30 is far too slow for a spike that
+                                # arrives in 2 seconds; the metric must be fresh.
+  cooldownPeriod: 300           # seconds after last trigger activity before scaling to min
+
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          # React on the very next evaluation. The whole point of measuring an 8x STEP
+          # function rather than a ramp is that there is no time to be gradual.
+          stabilizationWindowSeconds: 0
+          selectPolicy: Max
+          policies:
+            - type: Percent
+              value: 100        # allow doubling
+              periodSeconds: 15
+            - type: Pods
+              value: 4          # ...or +4 pods, whichever is larger
+              periodSeconds: 15
+        scaleDown:
+          # Deliberately sluggish. Meeting traffic spikes at the top of every hour; a fleet
+          # that shrinks 30 seconds before the next spike pays the full cold-start penalty
+          # again and fails the SLO. Brief over-provisioning is much cheaper than flapping.
+          stabilizationWindowSeconds: 600
+          selectPolicy: Min
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 120
+
+  triggers:
+    # ---------------------------------------------------------------- 1. warm headroom
+    # Keeps average in-flight requests per pod at 70% of a pod's slot capacity (slots=32
+    # here -> target 22). The idle 30% is the buffer that serves the first seconds of a
+    # spike while new pods are still pulling and loading. This is the trigger that usually
+    # decides replica count in steady state.
+    - type: prometheus
+      name: inflight-headroom
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        query: sum(vllm:num_requests_running{namespace="asr",service="whisper-asr"})
+        threshold: "22"
+        activationThreshold: "1"
+
+    # ---------------------------------------------------------------- 2. queue depth
+    # The surge trigger. Anything waiting means arrivals have already outrun service rate.
+    # threshold=4 means: for every 4 requests queued fleet-wide, ask for one more pod.
+    # Set this LOW. It is not a latency budget, it is an early warning — by the time queue
+    # depth is high enough to be comfortable about, p99 has already broken.
+    - type: prometheus
+      name: queue-depth
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        query: sum(vllm:num_requests_waiting{namespace="asr",service="whisper-asr"})
+        threshold: "4"
+        activationThreshold: "1"
+
+    # ---------------------------------------------------------------- 3. scale-down guard
+    # Never a scale-up signal (it saturates, see header). Its only job is to keep asking for
+    # roughly the current replica count while the GPUs are hot, so trigger 1 and 2 falling
+    # quiet during a lull does not immediately tear the fleet down mid-burst.
+    #
+    # avg util 90 / threshold 6 -> 15 replicas at full tilt; at avg util 20 it asks for 3,
+    # so it stops mattering the moment the fleet is genuinely idle. That is the intended
+    # shape: assertive while busy, silent while idle.
+    - type: prometheus
+      name: gpu-util-guard
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        query: avg(DCGM_FI_DEV_GPU_UTIL{namespace="asr"})
+        threshold: "6"
+        activationThreshold: "5"

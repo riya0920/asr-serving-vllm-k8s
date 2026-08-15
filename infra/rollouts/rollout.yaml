@@ -1,0 +1,121 @@
+# Argo Rollouts canary. Argo CD syncs this object; Argo Rollouts executes the progressive
+# delivery. Two different controllers, and the distinction is worth being precise about
+# because they are routinely conflated: Argo CD decides WHAT should be running (reconciles
+# the cluster against git), Argo Rollouts decides HOW a new version replaces the old one.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: whisper-asr
+  namespace: asr
+spec:
+  # Replica count is owned by KEDA's HPA, not by this manifest. During a canary the
+  # controller splits whatever the current count is between stable and canary.
+  selector:
+    matchLabels:
+      app: whisper-asr
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: whisper-asr        # pod spec lives in infra/k8s/deployment.yaml, single source
+  strategy:
+    canary:
+      canaryService: whisper-asr-canary
+      stableService: whisper-asr
+      maxSurge: 1
+      maxUnavailable: 0      # a GPU pod takes minutes to replace — never trade away capacity
+
+      analysis:
+        # Analysis starts with the FIRST canary pod and runs for the whole rollout, rather
+        # than only at designated pauses. A model regression that only shows up under load
+        # should abort the rollout the moment it is measurable, not at the next gate.
+        templates:
+          - templateName: canary-health
+        startingStep: 1
+        args:
+          - name: service
+            value: whisper-asr-canary
+          - name: namespace
+            value: asr
+
+      steps:
+        - setWeight: 10
+        - pause: { duration: 5m }    # soak. Long enough for p99 over a real traffic sample;
+                                     # a 30s soak on a service whose p99 is ~600ms observes
+                                     # almost nothing and will pass anything.
+        - setWeight: 30
+        - pause: { duration: 5m }
+        - setWeight: 60
+        - pause: { duration: 5m }
+        - setWeight: 100
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisper-asr-canary
+  namespace: asr
+  labels:
+    app: whisper-asr
+spec:
+  selector:
+    app: whisper-asr
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-health
+  namespace: asr
+spec:
+  args:
+    - name: service
+    - name: namespace
+  metrics:
+    # ------------------------------------------------------------------ latency
+    - name: p99-latency
+      interval: 30s
+      # Two consecutive breaches abort. One is noise: a single scrape can catch a pod
+      # mid-startup or a GC pause. Requiring two makes the gate mean "sustained regression"
+      # rather than "unlucky sample".
+      failureLimit: 2
+      consecutiveErrorLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            histogram_quantile(0.99,
+              sum(rate(vllm:e2e_request_latency_seconds_bucket{
+                namespace="{{args.namespace}}", service="{{args.service}}"}[2m])) by (le))
+      successCondition: result[0] <= 0.620      # the SLO, in seconds
+
+    # ------------------------------------------------------------------ errors
+    - name: error-rate
+      interval: 30s
+      failureLimit: 1                            # errors get no benefit of the doubt
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            sum(rate(vllm:request_failure_total{
+              namespace="{{args.namespace}}", service="{{args.service}}"}[2m]))
+            /
+            clamp_min(sum(rate(vllm:request_success_total{
+              namespace="{{args.namespace}}", service="{{args.service}}"}[2m])), 0.001)
+      successCondition: result[0] <= 0.01
+
+    # ------------------------------------------------------------------ liveness of the signal
+    - name: canary-receiving-traffic
+      interval: 30s
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc:9090
+          query: |
+            sum(rate(vllm:request_success_total{
+              namespace="{{args.namespace}}", service="{{args.service}}"}[2m]))
+      # Without this, a canary receiving ZERO traffic reports a perfect p99 and sails to
+      # 100%. An analysis that cannot fail is not a gate. This asserts the measurement is
+      # real before the other two are trusted.
+      successCondition: result[0] > 0.1
