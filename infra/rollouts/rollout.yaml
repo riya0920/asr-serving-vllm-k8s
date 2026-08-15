@@ -86,7 +86,7 @@ spec:
           address: http://prometheus-operated.monitoring.svc:9090
           query: |
             histogram_quantile(0.99,
-              sum(rate(vllm_omni:e2e_request_latency_seconds_bucket{
+              sum(rate(vllm:e2e_request_latency_seconds_bucket{
                 namespace="{{args.namespace}}", service="{{args.service}}"}[2m])) by (le))
       successCondition: result[0] <= 0.620      # the SLO, in seconds
 
@@ -98,10 +98,10 @@ spec:
         prometheus:
           address: http://prometheus-operated.monitoring.svc:9090
           query: |
-            sum(rate(vllm_omni:request_failure_total{
+            sum(rate(vllm:request_failure_total{
               namespace="{{args.namespace}}", service="{{args.service}}"}[2m]))
             /
-            clamp_min(sum(rate(vllm_omni:request_success_total{
+            clamp_min(sum(rate(vllm:request_success_total{
               namespace="{{args.namespace}}", service="{{args.service}}"}[2m])), 0.001)
       successCondition: result[0] <= 0.01
 
@@ -113,7 +113,7 @@ spec:
         prometheus:
           address: http://prometheus-operated.monitoring.svc:9090
           query: |
-            sum(rate(vllm_omni:request_success_total{
+            sum(rate(vllm:request_success_total{
               namespace="{{args.namespace}}", service="{{args.service}}"}[2m]))
       # Without this, a canary receiving ZERO traffic reports a perfect p99 and sails to
       # 100%. An analysis that cannot fail is not a gate. This asserts the measurement is

@@ -83,7 +83,7 @@ spec:
       name: inflight-headroom
       metadata:
         serverAddress: http://prometheus-operated.monitoring.svc:9090
-        query: sum(vllm_omni:num_requests_running{namespace="asr",service="whisper-asr"})
+        query: sum(vllm:num_requests_running{namespace="asr",service="whisper-asr"})
         threshold: "22"
         activationThreshold: "1"
 
@@ -96,7 +96,7 @@ spec:
       name: queue-depth
       metadata:
         serverAddress: http://prometheus-operated.monitoring.svc:9090
-        query: sum(vllm_omni:num_requests_waiting{namespace="asr",service="whisper-asr"})
+        query: sum(vllm:num_requests_waiting{namespace="asr",service="whisper-asr"})
         threshold: "4"
         activationThreshold: "1"
 
