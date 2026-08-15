@@ -3,7 +3,7 @@
 
 The entire autoscaling half of this project (M5, M6, M8) is about how the system reacts to
 queue depth. None of that logic needs a GPU to be correct — it needs a server that exposes
-`vllm:num_requests_waiting` and gets slower when overloaded. This is that server.
+`vllm_omni:num_requests_waiting` and gets slower when overloaded. This is that server.
 
 Purpose: develop and debug the KEDA ScaledObject, the Prometheus scrape config, the Argo
 Rollouts analysis template, and the spike test itself on a CPU cluster, so that when the
@@ -134,18 +134,21 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/metrics":
             s = ENGINE.snapshot()
-            # Metric names match what vLLM actually exposes, so the KEDA trigger and the
-            # Prometheus rules developed against this stub work unchanged against the real
-            # server. If these names drift, M5 silently scales on nothing.
-            body = f"""# HELP vllm:num_requests_waiting Number of requests waiting to be processed.
-# TYPE vllm:num_requests_waiting gauge
-vllm:num_requests_waiting{{model_name="stub"}} {s['waiting']}
-# HELP vllm:num_requests_running Number of requests currently running.
-# TYPE vllm:num_requests_running gauge
-vllm:num_requests_running{{model_name="stub"}} {s['running']}
-# HELP vllm:request_success_total Count of successfully processed requests.
-# TYPE vllm:request_success_total counter
-vllm:request_success_total{{model_name="stub"}} {s['finished']}
+            # Names VERIFIED against a live vllm-omni 0.26.0 server (M3, 2026-08-15):
+            # the prefix is `vllm_omni:`, NOT `vllm:`. This repo originally guessed `vllm:`
+            # and every KEDA query would have returned an empty result — the autoscaler
+            # would have sat at minReplicaCount through an 8x spike while every dashboard
+            # showed green. Curl /metrics on the real engine before trusting any of this;
+            # a scaling rule built on a metric name nobody checked is decoration.
+            body = f"""# HELP vllm_omni:num_requests_waiting Number of requests waiting to be processed.
+# TYPE vllm_omni:num_requests_waiting gauge
+vllm_omni:num_requests_waiting{{model_name="stub"}} {s['waiting']}
+# HELP vllm_omni:num_requests_running Number of requests currently running.
+# TYPE vllm_omni:num_requests_running gauge
+vllm_omni:num_requests_running{{model_name="stub"}} {s['running']}
+# HELP vllm_omni:request_success_total Count of successfully processed requests.
+# TYPE vllm_omni:request_success_total counter
+vllm_omni:request_success_total{{model_name="stub"}} {s['finished']}
 # HELP DCGM_FI_DEV_GPU_UTIL GPU utilization percent (simulated; saturates at 100).
 # TYPE DCGM_FI_DEV_GPU_UTIL gauge
 DCGM_FI_DEV_GPU_UTIL{{gpu="0"}} {s['gpu_util']}
