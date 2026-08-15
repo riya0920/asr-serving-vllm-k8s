@@ -1,7 +1,8 @@
 # ADR-001: Where the Kubernetes half runs
 
-**Status:** OPEN — blocked on the M1 probe
-**Date opened:** 2026-08-15
+**Status:** DECIDED — Option C (split substrate)
+**Date:** 2026-08-15
+**Evidence:** `results/m1_substrate_probe.txt`
 
 ## Context
 
@@ -11,37 +12,54 @@ The project needs two different things from its hardware:
 - **Cluster work (M5–M8)** — a real Kubernetes *node*: kubelet managing cgroups, mount
   propagation, the NVIDIA device plugin claiming GPUs as allocatable resources.
 
-RunPod is already available, so it is the default candidate. The problem is that a standard
-RunPod Pod is a container, not a host. k3s inside a container needs `--privileged` for cgroup
-and mount access, and the device plugin expects to configure the node's container runtime.
-RunPod's own documentation points at Bare Metal for "full system-level access", which suggests
-standard Pods will not do it — but their capability set changes and the docs are not a
-substitute for trying it.
+RunPod was the default candidate because it was already available.
+
+## What the probe found
+
+Ran on a RunPod GPU pod (NVIDIA A40 48GB, Ubuntu 22.04, kernel 6.8.0-65, container
+`9a8af355e97c`). Three independent blockers, each sufficient on its own:
+
+1. **`CAP_SYS_ADMIN` is not granted.** The container holds only the default Docker set
+   (`chown, dac_override, fowner, fsetid, kill, setgid, setuid, setpcap, net_bind_service,
+   net_raw, sys_chroot, mknod, audit_write, setfcap`). Kubelet cannot manage mounts or
+   cgroups without it.
+2. **`/proc/sys/net/ipv4/ip_forward` is not writable**, and neither `br_netfilter` nor
+   `overlay` can be loaded. Pod networking cannot be configured.
+3. **PID 1 is not systemd.** The k3s installer completed and wrote its unit file, then died
+   at `System has not been booted with systemd as init system (PID 1). Can't operate.`
+
+Note that (3) alone could be worked around by running `k3s server` as a bare process instead
+of a service — but (1) and (2) cannot be worked around from inside the container, so it is
+not worth attempting.
+
+Incidental finding: the probe reported 96 CPUs and 503 GB RAM, which is the **host's**
+`/proc`, not the pod's allocation. Any resource-based tuning done inside a RunPod pod is
+reading the wrong numbers.
 
 ## Decision
 
-Not yet made. `scripts/runpod_probe.sh` decides it empirically. It costs a few cents on the
-cheapest GPU pod and tests the exact thing that matters: does `k3s kubectl get nodes` report
-Ready, and does the node advertise `nvidia.com/gpu`.
+**Option C — split the substrate.**
 
-## Options
+| Milestone | Where | Why |
+|---|---|---|
+| M2 baseline, M3 vLLM-Omni, M4 spec decode | RunPod GPU pod | container is fine; A40 48GB is ample for Whisper-Large + a Distil-Whisper draft |
+| M5/M6/M8 control-plane rehearsal | any VM with Docker (kind) | proves the whole KEDA→HPA→pod loop against `infra/stub/`, no GPU needed, effectively free |
+| M6 real spike numbers on a GPU fleet | deferred — needs a root-access GPU VM | RunPod Bare Metal, or a provider that gives real VMs |
 
-| Option | Model work | Cluster work | Cost | Notes |
-|---|---|---|---|---|
-| A — RunPod Pods only | yes | **only if probe passes** | lowest | test first |
-| B — RunPod Pods + RunPod Bare Metal | yes | yes | higher, reserved | full root, no container layer |
-| C — RunPod Pods + root-access VM (e.g. Lambda) | yes | yes | mid, on-demand | k3s installs cleanly on a real VM |
-| D — RunPod for GPU, local kind cluster for control plane | yes | partial | lowest | KEDA/Argo logic provable, but no GPU nodes — cannot produce the spike number |
+The rehearsal target should be the **Oracle free-tier VM already in use for job-hunter**
+(4 OCPU / 24 GB ARM). `kind`, KEDA, Prometheus and `python:3.12-slim` all have arm64 images,
+so the entire autoscaling control plane can be validated at zero additional cost. Only the
+final GPU-fleet measurement needs paid hardware.
 
-Option D is a legitimate fallback for *developing* M5–M8 cheaply, and should be used for that
-regardless of which option wins: write and test every manifest against a CPU cluster with a
-stub server that exposes a fake `num_requests_waiting`, so the expensive box only ever runs
-the measurement.
+## Consequences
 
-## Consequences to record once decided
-
-- Which option, and the probe output that justified it (`results/m1_substrate_probe.txt`)
-- Hourly cost and what a full benchmark session is expected to cost
-- If the cluster ends up on a single multi-GPU node: note that image pull is near-zero there,
-  so the cold-start story is dominated by model-load-to-VRAM. Say so in the write-up rather
-  than implying a multi-minute pull that was never on the critical path.
+- The 8x spike number cannot be produced on RunPod standard pods. It is deferred to a
+  single, well-prepared session on root-access GPU hardware, with every manifest already
+  validated against the kind rehearsal.
+- The baseline (M2) and all single-GPU throughput work happen on an **A40**, not an H100.
+  Every speedup is measured against a baseline on the same A40, which is what makes the
+  ratio meaningful. Absolute per-GPU throughput will not be an H100 number and must not be
+  reported as one.
+- Cold-start measurements taken later on a single multi-GPU node will under-represent image
+  pull time, since the image is node-local. Report the model-load-to-VRAM component
+  separately rather than implying a multi-minute pull.

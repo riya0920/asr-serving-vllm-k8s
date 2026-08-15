@@ -1,0 +1,59 @@
+
+=== Host identity ===
+  kernel : 6.8.0-65-generic
+  distro : Ubuntu 22.04.4 LTS
+  cpus   : 96
+  memory : 503Gi
+  [WARN] running inside a container — this is the thing that usually blocks k3s
+
+=== GPU ===
+  NVIDIA A40, 46068 MiB, 570.195.03
+  [PASS] nvidia-smi works
+
+=== Privileges (k3s needs these) ===
+  Current: cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap=ep
+  [FAIL] CAP_SYS_ADMIN missing — kubelet cannot manage mounts/cgroups
+  [PASS] running as root
+
+=== cgroups ===
+  version: v1
+  [PASS] cgroup hierarchy is writable
+
+=== Kernel modules and networking ===
+  [WARN] module br_netfilter not loadable — k3s may fall back or fail on pod networking
+  [WARN] module overlay not loadable — k3s may fall back or fail on pod networking
+  [FAIL] cannot set ip_forward
+
+=== Installing k3s (the actual test) ===
+  [FAIL] k3s installer failed
+  [INFO]  Finding release for channel stable
+  [INFO]  Using v1.36.3+k3s1 as release
+  [INFO]  Downloading hash https://github.com/k3s-io/k3s/releases/download/v1.36.3%2Bk3s1/sha256sum-amd64.txt
+  [INFO]  Downloading binary https://github.com/k3s-io/k3s/releases/download/v1.36.3%2Bk3s1/k3s
+  [INFO]  Verifying binary download
+  [INFO]  Installing k3s to /usr/local/bin/k3s
+  [INFO]  Skipping installation of SELinux RPM
+  [INFO]  Creating /usr/local/bin/kubectl symlink to k3s
+  [INFO]  Creating /usr/local/bin/crictl symlink to k3s
+  [INFO]  Creating /usr/local/bin/ctr symlink to k3s
+  [INFO]  Creating killall script /usr/local/bin/k3s-killall.sh
+  [INFO]  Creating uninstall script /usr/local/bin/k3s-uninstall.sh
+  [INFO]  env: Creating environment file /etc/systemd/system/k3s.service.env
+  [INFO]  systemd: Creating service file /etc/systemd/system/k3s.service
+  [INFO]  systemd: Enabling k3s unit
+  Created symlink /etc/systemd/system/multi-user.target.wants/k3s.service → /etc/systemd/system/k3s.service.
+  System has not been booted with systemd as init system (PID 1). Can't operate.
+  Failed to connect to bus: Host is down
+
+=== NVIDIA device plugin (does k8s actually see the GPU?) ===
+
+=== VERDICT ===
+  pass=3  fail=3  warn=3
+
+  FAIL — this substrate cannot host a real Kubernetes node.
+  Keep model work (M2-M4) here; move cluster work to bare metal or a
+  root-access VM. Record the choice in docs/adr-001-substrate.md.
+
+=== Cleanup ===
+  to remove k3s:  /usr/local/bin/k3s-uninstall.sh
+  STOP THE POD when done — it bills while idle.
