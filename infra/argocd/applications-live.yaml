@@ -1,0 +1,64 @@
+# Three environments, one cluster, three namespaces — watching three paths in the SAME repo.
+#
+# Namespace-per-environment on a shared cluster is how a large share of real deployments run;
+# it gives you separate blast radii and separate promotion gates without paying for three
+# control planes. The trade-off is that a cluster-level failure hits all three at once, which
+# a multi-cluster setup would isolate.
+#
+# The promotion policy is the point: dev and staging self-heal automatically, prod does not.
+# A change reaches prod only when a human syncs it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: asr-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/riya0920/asr-serving-vllm-k8s.git
+    targetRevision: main
+    path: envs/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: asr-dev
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: asr-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/riya0920/asr-serving-vllm-k8s.git
+    targetRevision: main
+    path: envs/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: asr-staging
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: asr-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/riya0920/asr-serving-vllm-k8s.git
+    targetRevision: main
+    path: envs/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: asr-prod
+  syncPolicy:
+    # NO automated block. Prod syncs when a human decides. The canary and its analysis still
+    # run automatically once the sync starts — the human gate is on "should this go to prod",
+    # which is a judgement call, not on "is it healthy", which a machine answers faster.
+    syncOptions: [CreateNamespace=true]
