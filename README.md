@@ -34,7 +34,8 @@ No number in this repo comes from an estimate, a blog post, or a resume draft.
 | Speculative decode acceptance | n/a | — | measure | 1 of 2 blockers fixed — [ADR-007](docs/adr-007-spec-decode-actual-status.md), [patch](patches/) |
 | Canary promotion (analysis passes) | — | **74 s** ✅ | claim 14 | [ADR-009](docs/adr-009-canary-rollback-measured.md) |
 | Auto-rollback (analysis fails) | — | **22 s** ✅ | claim 14 | [ADR-009](docs/adr-009-canary-rollback-measured.md) |
-| Deploy wall-clock (commit → prod) | — | — | < 22 min | CI not yet exercised |
+| CI pipeline (lint, WER tests, manifests) | — | **green, 16 s** ✅ | claim 13 | [run #6](https://github.com/riya0920/asr-serving-vllm-k8s/actions) |
+| Deploy wall-clock (commit → canary promoted) | 6 h (claimed) | **~90 s** ✅ | < 22 min | 16 s CI + 74 s canary |
 
 ### Throughput and latency are a trade-off, not two independent wins
 
