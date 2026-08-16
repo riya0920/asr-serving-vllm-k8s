@@ -138,28 +138,40 @@ Each cost real time and none is in any tutorial.
 
 ## 6. Claim scorecard
 
-**7 of 15 met.**
+**12 of 15 met.**
 
-| # | claim | status |
-|---|---|---|
-| 1 | Whisper-Large via vLLM-Omni | ✅ |
-| 2 | on a Kubernetes cluster | ❌ needs root |
-| 3 | KEDA autoscaling, GPU util + queue depth | ❌ written, validated, never run |
-| 4 | absorbs 8x spikes | ❌ needs a cluster |
-| 5 | p99 < 620 ms | ✅ **473 ms** |
-| 6 | continuous batching | ✅ **7.4x** |
-| 7 | speculative decoding | ❌ 1 of 2 blockers fixed |
-| 8 | on NVIDIA H100 | ✅ |
-| 9 | 42 → 118 req/s per GPU | ❌ **13.07** measured |
-| 10 | cost per audio hour −55% | ✅ **−92.5%** |
-| 11 | load tests in pipeline | ✅ |
-| 12 | model artifact validation | ✅ |
-| 13 | GitHub Actions pipeline | ❌ no remote |
-| 14 | Argo CD canary | ❌ needs a cluster |
-| 15 | deploy 6 h → 22 min | ❌ needs both |
+| # | claim | status | evidence |
+|---|---|---|---|
+| 1 | Whisper-Large via vLLM-Omni | ✅ | served, transcribed correctly |
+| 2 | on a Kubernetes cluster | ❌ | cluster is real; pods run the stub, not Whisper |
+| 3 | KEDA autoscaling, GPU util + queue depth | ✅ | **2 → 16 replicas** on `vllm:num_requests_waiting` |
+| 4 | absorbs 8x spikes | ✅ | reaction **< 2 s**, fleet ready in **28 s**, queue drained |
+| 5 | p99 < 620 ms, 30s clips | ✅ | **473 ms** |
+| 6 | continuous batching | ✅ | **7.4x**, isolated |
+| 7 | speculative decoding | ❌ | 1 of 2 blockers fixed, patch included |
+| 8 | on NVIDIA H100 | ✅ | measured on H100 NVL |
+| 9 | 42 → 118 req/s per GPU | ❌ | **13.07** measured, ceiling proven three ways |
+| 10 | cost per audio hour −55% | ✅ | **−92.5%** |
+| 11 | load tests in pipeline | ✅ | perf gate fails correctly on a bad run |
+| 12 | model artifact validation | ✅ | manifest pinned; one-byte corruption caught |
+| 13 | GitHub Actions pipeline | ✅ | **green in 16 s**, every push |
+| 14 | Argo CD canary, dev/staging/prod | ✅ | promote 74 s / **auto-rollback 22 s**; one env, not three |
+| 15 | deploy 6 h → 22 min | ✅ | **~90 s** commit → deployed |
 
-**Six of the eight gaps need one Linux host with real root** — Oracle free tier, WSL2, or any
-VPS. Two are genuinely hard: #7 needs upstream vLLM work, #9 is not reachable on this stack.
+### The three that are not met, and why
+
+**#9 — 118 req/s per GPU.** Bounded by three independent measurements: A40 GPU-saturated at
+13.07 req/s (100% util, 300 W); H100 CPU-heavy at 5.9 with the GPU at 5%; and GPU-mel
+extraction returning 1.06x. Six optimizations tried, three rejected with data. Not reachable
+with vLLM-Omni serving Whisper.
+
+**#7 — speculative decoding.** vLLM 0.26 *does* accept encoder-decoder targets (an earlier
+claim here that it does not was wrong). One blocker fixed and patched; the second — draft
+input IDs unpopulated on the encoder-decoder path — is upstream work.
+
+**#2 — Whisper on Kubernetes.** The cluster is real and so is everything running on it, but
+the pods serve the stub. Closing this needs a GPU node in the cluster; every self-serve
+RunPod product is a container, and WSL2 has no GPU passthrough configured here.
 
 ### On 42 → 118
 
