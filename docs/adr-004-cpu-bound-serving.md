@@ -43,8 +43,16 @@ So the two cards are limited by different things:
   5.93 for one — a 5% gain, so the client is not the limit either. The engine's CPU work is.
 
 The A40's GPU was slow enough to be the binding constraint at 13 req/s. The H100's GPU is fast
-enough that the CPU front end binds first, at ~6 req/s — and this pod's CPU allocation is
-apparently lower relative to its GPU than the A40 pod's was.
+enough that the CPU front end binds first, at ~6 req/s.
+
+**What is measured vs. inferred.** Measured: the engine saturated 23 cores while the GPU sat
+at 5%, and adding client processes did not help. That is sufficient to establish CPU-bound.
+NOT measured: the container's actual CPU quota — `/sys/fs/cgroup/cpu.max` was absent on this
+pod, and `nproc` reports the host's 192 cores, which is not the allocation. So *why* the H100
+pod hit the CPU wall at a lower absolute throughput than the A40 pod remains unexplained: it
+could be a smaller CPU allocation, a different host generation, or noisy neighbours. Anyone
+repeating this should read the quota first — via `cpu.cfs_quota_us` on cgroup v1, or by timing
+a fixed CPU workload — rather than trusting `nproc`.
 
 ## What this means for "118 requests per second per GPU"
 
