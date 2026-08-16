@@ -40,7 +40,7 @@ import random
 import statistics
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 try:
@@ -250,7 +250,12 @@ async def run_sweep(url, model, clips, concurrency_list, per_level, timeout):
             results: list[Sample] = []
             t0 = time.perf_counter()
 
-            async def worker():
+            # Bind the loop variables as defaults rather than closing over them. This is
+            # safe today because gather() awaits every worker before the loop advances, but
+            # closing over a loop variable is a latent bug: any refactor that lets workers
+            # outlive their iteration would silently record results against the wrong
+            # concurrency level, and the numbers would still look plausible.
+            async def worker(results=results, t0=t0, c=c):
                 while len(results) < per_level:
                     at = time.perf_counter() - t0
                     await transcribe(

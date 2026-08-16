@@ -26,7 +26,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "bench"))
-from wer import corpus_wer, wer as clip_wer  # noqa: E402
+from wer import corpus_wer
+from wer import wer as clip_wer
 
 try:
     import httpx

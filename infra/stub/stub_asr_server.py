@@ -105,10 +105,11 @@ class Engine:
 
 ENGINE: Engine  # set in main()
 
-_LOREM = (
-    "the quick brown fox jumps over the lazy dog while the committee reviewed "
-    "the quarterly figures and adjourned until the following morning"
-).split()
+_LOREM = [
+    "the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
+    "while", "the", "committee", "reviewed", "the", "quarterly", "figures",
+    "and", "adjourned", "until", "the", "following", "morning",
+]
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -238,7 +239,7 @@ def main() -> None:
     theoretical = args.slots / (args.service_ms / 1000.0)
     print(f"stub ASR server on :{args.port}")
     print(f"  {args.slots} slots x {args.service_ms}ms  ->  ~{theoretical:.1f} req/s capacity")
-    print(f"  queue depth climbs above that rate; GPU util saturates at 100 and stops informing")
+    print("  queue depth climbs above that rate; GPU util saturates at 100 and stops informing")
     if args.load_seconds:
         print(f"  /ready returns 503 for the first {args.load_seconds}s (simulated model load)")
 

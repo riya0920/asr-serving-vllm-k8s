@@ -19,12 +19,12 @@ import argparse
 import json
 import platform
 import statistics
+import sys
 import time
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent))
-from wer import corpus_wer  # noqa: E402
+from wer import corpus_wer
 
 
 def gpu_info() -> dict:
@@ -54,8 +54,8 @@ def main() -> None:
     ap.add_argument("--note", default="")
     args = ap.parse_args()
 
-    import torch
     import soundfile as sf
+    import torch
     from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 
     # On H100 + torch 2.11, cuDNN's scaled-dot-product-attention backend has no execution

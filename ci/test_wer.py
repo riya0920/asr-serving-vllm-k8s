@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "bench"))
-from wer import normalize, wer, corpus_wer  # noqa: E402
+from wer import corpus_wer, normalize, wer
 
 FAILURES: list[str] = []
 
