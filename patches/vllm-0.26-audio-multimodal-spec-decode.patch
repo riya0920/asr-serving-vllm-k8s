@@ -1,0 +1,27 @@
+--- /usr/local/lib/python3.12/dist-packages/vllm/v1/spec_decode/llm_base_proposer.py.orig	2026-08-16 06:33:06.116827051 +0000
++++ /usr/local/lib/python3.12/dist-packages/vllm/v1/spec_decode/llm_base_proposer.py	2026-08-16 06:33:06.116827051 +0000
+@@ -1391,12 +1391,18 @@
+                     target_model.config.media_placeholder_token_id
+                 )
+             else:
+-                self.model.config.image_token_index = (
+-                    target_model.config.image_token_index
+-                )
+-            target_language_model = cast(
+-                SupportsMultiModal, target_model
+-            ).get_language_model()
++                # PATCH: audio multimodal targets (Whisper) have no image placeholder
++                # token. Only propagate the index when the target actually defines one.
++                _img_idx = getattr(target_model.config, "image_token_index", None)
++                if _img_idx is not None:
++                    self.model.config.image_token_index = _img_idx
++            # PATCH: encoder-decoder audio models have no separate language submodule.
++            try:
++                target_language_model = cast(
++                    SupportsMultiModal, target_model
++                ).get_language_model()
++            except (NotImplementedError, AttributeError):
++                target_language_model = target_model
+         else:
+             target_language_model = target_model
+ 

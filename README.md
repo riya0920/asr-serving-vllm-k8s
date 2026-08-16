@@ -28,7 +28,7 @@ No number in this repo comes from an estimate, a blog post, or a resume draft.
 | H100 bottleneck | — | **CPU-heavy: 23 cores busy, GPU 5%** | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
 | GPU-mel experiment | 5.90 req/s | **6.27 req/s (1.06x)** ✗ | > 3x to matter | [ADR-005](docs/adr-005-gpu-mel-negative-result.md) |
 | p99 through 8x step spike | — | — | < 620 ms | blocked: needs a real cluster |
-| Speculative decode acceptance | n/a | — | measure | blocked: unsupported in vLLM for enc-dec |
+| Speculative decode acceptance | n/a | — | measure | 1 of 2 blockers fixed — [ADR-007](docs/adr-007-spec-decode-actual-status.md), [patch](patches/) |
 | Deploy wall-clock (commit → prod) | — | — | measure | blocked: needs a git remote + cluster |
 
 ### Throughput and latency are a trade-off, not two independent wins
