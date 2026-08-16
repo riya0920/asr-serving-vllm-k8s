@@ -58,6 +58,14 @@ def main() -> None:
     import soundfile as sf
     from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 
+    # On H100 + torch 2.11, cuDNN's scaled-dot-product-attention backend has no execution
+    # plan for Whisper's attention shapes and dies with "cudnn_frontend Error: No valid
+    # execution plans built" the moment the encoder runs. Disabling that one backend leaves
+    # flash and mem-efficient SDPA available, so this costs nothing measurable and keeps the
+    # baseline running on the same code path across GPUs. Did not reproduce on A40.
+    if hasattr(torch.backends.cuda, "enable_cudnn_sdp"):
+        torch.backends.cuda.enable_cudnn_sdp(False)
+
     manifest = json.loads((args.golden / "manifest.json").read_text())
     clips = manifest["clips"]
     if not clips:

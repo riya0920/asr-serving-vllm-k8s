@@ -22,7 +22,10 @@ No number in this repo comes from an estimate, a blog post, or a resume draft.
 | Corpus WER, large-v3 | **0.0160** | — | gate reference | [M2](results/m2_baseline_sequential.json) |
 | Corpus WER, turbo | — | **0.0236** (+0.0076) ✅ | within +0.02 | CI gate, M3 |
 | Cost per audio hour | — | **−92.5%** ✅ | −55% | [M9](results/m9_cost_model.json) |
-| GPU saturation proof | — | **100% util @ 300 W** | — | [ADR-003](docs/adr-003-throughput-ceiling.md) |
+| GPU saturation proof (A40) | — | **100% util @ 300 W** | — | [ADR-003](docs/adr-003-throughput-ceiling.md) |
+| Served on NVIDIA H100 | — | **yes, measured** ✅ | claim 8 | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
+| H100 peak throughput | — | **5.93 req/s** (worse than A40) | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
+| H100 bottleneck | — | **CPU-bound: 23 cores busy, GPU 5%** | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
 | p99 through 8x step spike | — | — | < 620 ms | blocked: needs a real cluster |
 | Speculative decode acceptance | n/a | — | measure | blocked: unsupported in vLLM for enc-dec |
 | Deploy wall-clock (commit → prod) | — | — | measure | blocked: needs a git remote + cluster |

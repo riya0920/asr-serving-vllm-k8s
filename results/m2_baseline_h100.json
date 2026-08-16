@@ -1,0 +1,44 @@
+{
+  "milestone": "M2",
+  "kind": "sequential_baseline",
+  "model": "openai/whisper-large-v3",
+  "dtype": "float16",
+  "hardware": {
+    "device": "NVIDIA H100 NVL",
+    "vram_gb": 99.9,
+    "cuda": "13.0",
+    "torch": "2.11.0+cu130",
+    "count": 1
+  },
+  "host": {
+    "python": "3.12.3",
+    "platform": "Linux-6.8.0-117-generic-x86_64-with-glibc2.39"
+  },
+  "model_load_seconds": 6.29,
+  "clips": 50,
+  "audio_seconds": 1500.0,
+  "wall_seconds": 132.57,
+  "throughput_rps": 0.377,
+  "realtime_factor": 11.3,
+  "latency_ms": {
+    "mean": 2651.1,
+    "p50": 2629.8,
+    "min": 1727.1,
+    "max": 3726.0
+  },
+  "decoded_tokens": {
+    "mean": 79.3,
+    "min": 33,
+    "max": 117
+  },
+  "quality": {
+    "wer": 0.016038266741699492,
+    "substitutions": 45,
+    "deletions": 5,
+    "insertions": 7,
+    "ref_words": 3554,
+    "clips": 50,
+    "worst_clip_wer": 0.13829787234042554
+  },
+  "note": "H100 NVL 94GB, driver 580.159.03, CUDA 13.0, fp16, cudnn_sdp off"
+}

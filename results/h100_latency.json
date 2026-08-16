@@ -1,0 +1,68 @@
+{
+  "profile": "sweep",
+  "url": "http://localhost:8000",
+  "model": "openai/whisper-large-v3-turbo",
+  "base_rps": 5.0,
+  "clips": 50,
+  "requests": 411,
+  "started_unix": 1786854694.766538,
+  "note": "H100 NVL, turbo, latency",
+  "phases": [
+    {
+      "phase": "c=1",
+      "requests": 100,
+      "errors": 0,
+      "duration_s": 39.99,
+      "achieved_rps": 2.5,
+      "p50_ms": 394.4,
+      "p95_ms": 497.2,
+      "p99_ms": 576.0,
+      "max_ms": 709.4,
+      "mean_queue_delay_ms": 0.0,
+      "max_queue_delay_ms": 0.0,
+      "generator_healthy": true
+    },
+    {
+      "phase": "c=2",
+      "requests": 101,
+      "errors": 0,
+      "duration_s": 33.11,
+      "achieved_rps": 3.05,
+      "p50_ms": 661.8,
+      "p95_ms": 792.6,
+      "p99_ms": 866.7,
+      "max_ms": 878.4,
+      "mean_queue_delay_ms": 0.0,
+      "max_queue_delay_ms": 0.0,
+      "generator_healthy": true
+    },
+    {
+      "phase": "c=4",
+      "requests": 103,
+      "errors": 0,
+      "duration_s": 29.11,
+      "achieved_rps": 3.54,
+      "p50_ms": 1107.1,
+      "p95_ms": 1430.4,
+      "p99_ms": 1808.4,
+      "max_ms": 1951.8,
+      "mean_queue_delay_ms": 0.0,
+      "max_queue_delay_ms": 0.0,
+      "generator_healthy": true
+    },
+    {
+      "phase": "c=8",
+      "requests": 107,
+      "errors": 0,
+      "duration_s": 26.15,
+      "achieved_rps": 4.09,
+      "p50_ms": 1943.7,
+      "p95_ms": 2819.5,
+      "p99_ms": 3126.4,
+      "max_ms": 3220.7,
+      "mean_queue_delay_ms": 0.0,
+      "max_queue_delay_ms": 0.0,
+      "generator_healthy": true
+    }
+  ]
+}
