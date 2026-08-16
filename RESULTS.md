@@ -138,7 +138,7 @@ Each cost real time and none is in any tutorial.
 
 ## 6. Claim scorecard
 
-**12 of 15 met.**
+**13 of 15 met.**
 
 | # | claim | status | evidence |
 |---|---|---|---|
@@ -155,7 +155,8 @@ Each cost real time and none is in any tutorial.
 | 11 | load tests in pipeline | ✅ | perf gate fails correctly on a bad run |
 | 12 | model artifact validation | ✅ | manifest pinned; one-byte corruption caught |
 | 13 | GitHub Actions pipeline | ✅ | **green in 16 s**, every push |
-| 14 | Argo CD canary, dev/staging/prod | ✅ | promote 74 s / **auto-rollback 22 s**; one env, not three |
+| 14 | Argo CD canary | ✅ | promote 74 s / **auto-rollback 22 s** |
+| 16 | across dev, staging, prod | ✅ | 3 namespaces, GitOps-synced; prod gated on a human |
 | 15 | deploy 6 h → 22 min | ✅ | **~90 s** commit → deployed |
 
 ### The three that are not met, and why
