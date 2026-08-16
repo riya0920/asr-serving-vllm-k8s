@@ -1,0 +1,27 @@
+{
+  "milestone": "M9",
+  "method": "cost per audio hour is proportional to GPU-hours per audio-hour; the ratio is independent of the price paid per GPU-hour",
+  "clip_seconds": 30.0,
+  "baseline": {
+    "rps": 0.6,
+    "audio_hours_per_gpu_hour": 18.0,
+    "realtime_factor": 18.0
+  },
+  "current": {
+    "rps": 13.07,
+    "audio_hours_per_gpu_hour": 392.1,
+    "realtime_factor": 392.1
+  },
+  "throughput_ratio": 21.78,
+  "cost_reduction": {
+    "raw": 0.9541,
+    "after_warm_headroom": 0.9344,
+    "after_headroom_and_idle_floor": 0.9251
+  },
+  "assumptions": {
+    "headroom_occupancy": 0.7,
+    "min_replicas": 2,
+    "mean_replicas": 4.0,
+    "note": "headroom and floor are DESIGN parameters from infra/keda/scaledobject.yaml, not measurements. The throughput numbers they scale ARE measured."
+  }
+}

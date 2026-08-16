@@ -13,18 +13,31 @@ a p99 SLO, shrink back to protect cost — and can changes ship to it in minutes
 Every number here starts empty and is filled in **only** from a run artifact in `results/`.
 No number in this repo comes from an estimate, a blog post, or a resume draft.
 
-| Metric | Baseline (A40) | Current | Target | Evidence |
+| Metric | Baseline (A40) | Measured | Target | Evidence |
 |---|---|---|---|---|
-| Throughput (req/s per GPU) | **0.632** | — | beat baseline | [M2](results/m2_baseline_sequential.json) |
-| Real-time factor | **19.0x** | — | beat baseline | [M2](results/m2_baseline_sequential.json) |
-| Latency, 30s clip (p50) | **1594 ms** | — | — | [M2](results/m2_baseline_sequential.json) |
-| Latency, 30s clip (max of 50) | **2214 ms** | — | — | [M2](results/m2_baseline_sequential.json) |
-| p99 latency through 8x step spike | n/a | — | < 620 ms | pending M6 |
-| Corpus WER (CI gate reference) | **0.0160** | — | no regression > 0.02 | [M2](results/m2_baseline_sequential.json) |
-| Speculative decode acceptance rate | n/a | — | measure | pending M4 |
-| Net spec-decode gain at production batch size | n/a | — | measure | pending M4 |
-| Cost per audio hour | — | — | beat baseline | pending M9 |
-| Deploy wall-clock (commit → prod) | — | — | measure | pending M8 |
+| Throughput (req/s per GPU) | 0.600 | **13.07** (21.8x) | 118 ✗ unreachable | [M3](results/m3_turbo_latency.json), [ADR-003](docs/adr-003-throughput-ceiling.md) |
+| Real-time factor | 18x | **392x** | — | [M3](results/m3_turbo_latency.json) |
+| p99 latency, 30s clip @ c=1 | 2214 ms (max) | **473 ms** ✅ | < 620 ms | [M3](results/m3_turbo_latency.json) |
+| p99 latency @ c=2 | — | 636 ms | < 620 ms | [M3](results/m3_turbo_latency.json) |
+| Corpus WER, large-v3 | **0.0160** | — | gate reference | [M2](results/m2_baseline_sequential.json) |
+| Corpus WER, turbo | — | **0.0236** (+0.0076) ✅ | within +0.02 | CI gate, M3 |
+| Cost per audio hour | — | **−92.5%** ✅ | −55% | [M9](results/m9_cost_model.json) |
+| GPU saturation proof | — | **100% util @ 300 W** | — | [ADR-003](docs/adr-003-throughput-ceiling.md) |
+| p99 through 8x step spike | — | — | < 620 ms | blocked: needs a real cluster |
+| Speculative decode acceptance | n/a | — | measure | blocked: unsupported in vLLM for enc-dec |
+| Deploy wall-clock (commit → prod) | — | — | measure | blocked: needs a git remote + cluster |
+
+### Throughput and latency are a trade-off, not two independent wins
+
+Read the first three rows together. 13.07 req/s is measured at concurrency 128, where p99 is
+16 s. The 473 ms p99 is measured at concurrency 1, where throughput is 2.79 req/s. **There is
+no operating point that delivers both**, because throughput comes from batching and batching
+costs latency.
+
+The architecture that reconciles them is the fleet: KEDA holds each pod at low concurrency so
+p99 stays under SLO, and aggregate throughput comes from pod count. That makes high aggregate
+throughput and low p99 compatible — but it makes them compatible *across the fleet*, never
+*per GPU*.
 
 **Baseline** = naive sequential Whisper-Large-v3 (fp16), one request at a time, HF transformers.
 **Current** = whatever the most recent run in `results/` actually produced.
