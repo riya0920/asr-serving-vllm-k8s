@@ -25,7 +25,8 @@ No number in this repo comes from an estimate, a blog post, or a resume draft.
 | GPU saturation proof (A40) | — | **100% util @ 300 W** | — | [ADR-003](docs/adr-003-throughput-ceiling.md) |
 | Served on NVIDIA H100 | — | **yes, measured** ✅ | claim 8 | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
 | H100 peak throughput | — | **5.93 req/s** (worse than A40) | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
-| H100 bottleneck | — | **CPU-bound: 23 cores busy, GPU 5%** | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
+| H100 bottleneck | — | **CPU-heavy: 23 cores busy, GPU 5%** | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
+| GPU-mel experiment | 5.90 req/s | **6.27 req/s (1.06x)** ✗ | > 3x to matter | [ADR-005](docs/adr-005-gpu-mel-negative-result.md) |
 | p99 through 8x step spike | — | — | < 620 ms | blocked: needs a real cluster |
 | Speculative decode acceptance | n/a | — | measure | blocked: unsupported in vLLM for enc-dec |
 | Deploy wall-clock (commit → prod) | — | — | measure | blocked: needs a git remote + cluster |

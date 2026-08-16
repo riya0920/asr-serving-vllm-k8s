@@ -1,0 +1,26 @@
+{
+  "profile": "sweep",
+  "url": "http://localhost:8000",
+  "model": "openai/whisper-large-v3-turbo",
+  "base_rps": 5.0,
+  "clips": 50,
+  "requests": 111,
+  "started_unix": 1786859530.83238,
+  "note": "armB c3",
+  "phases": [
+    {
+      "phase": "c=32",
+      "requests": 111,
+      "errors": 0,
+      "duration_s": 141.11,
+      "achieved_rps": 0.79,
+      "p50_ms": 37815.5,
+      "p95_ms": 81288.5,
+      "p99_ms": 84490.6,
+      "max_ms": 85390.1,
+      "mean_queue_delay_ms": 0.0,
+      "max_queue_delay_ms": 0.0,
+      "generator_healthy": true
+    }
+  ]
+}

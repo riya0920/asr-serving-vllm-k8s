@@ -1,0 +1,39 @@
+{
+  "url": "http://localhost:8000",
+  "model": "openai/whisper-large-v3-turbo",
+  "baseline_wer": 0.016038266741699492,
+  "measured_wer": 0.023916713562183455,
+  "delta": 0.007878446820483963,
+  "tolerance": 0.02,
+  "corpus": {
+    "wer": 0.023916713562183455,
+    "substitutions": 70,
+    "deletions": 6,
+    "insertions": 9,
+    "ref_words": 3554,
+    "clips": 50,
+    "worst_clip_wer": 0.2222222222222222
+  },
+  "worst_clips": [
+    [
+      "clip_003.wav",
+      0.2222222222222222
+    ],
+    [
+      "clip_028.wav",
+      0.06862745098039216
+    ],
+    [
+      "clip_004.wav",
+      0.05714285714285714
+    ],
+    [
+      "clip_016.wav",
+      0.05357142857142857
+    ],
+    [
+      "clip_042.wav",
+      0.05333333333333334
+    ]
+  ]
+}
