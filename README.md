@@ -27,7 +27,10 @@ No number in this repo comes from an estimate, a blog post, or a resume draft.
 | H100 peak throughput | — | **5.93 req/s** (worse than A40) | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
 | H100 bottleneck | — | **CPU-heavy: 23 cores busy, GPU 5%** | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
 | GPU-mel experiment | 5.90 req/s | **6.27 req/s (1.06x)** ✗ | > 3x to matter | [ADR-005](docs/adr-005-gpu-mel-negative-result.md) |
-| p99 through 8x step spike | — | — | < 620 ms | blocked: needs a real cluster |
+| KEDA autoscaling on queue depth | — | **2 → 16 replicas** ✅ | claim 3 | [ADR-008](docs/adr-008-keda-autoscaling-measured.md) |
+| Autoscaler reaction to spike | — | **< 2 s** ✅ | claim 4 | [timeline](results/m6_wsl_spike_timeline.csv) |
+| Fleet ready after spike onset | — | **28 s**, queue drained | claim 4 | [ADR-008](docs/adr-008-keda-autoscaling-measured.md) |
+| p99 through 8x step spike | — | not measurable (client-bound) | < 620 ms | generator self-flagged invalid |
 | Speculative decode acceptance | n/a | — | measure | 1 of 2 blockers fixed — [ADR-007](docs/adr-007-spec-decode-actual-status.md), [patch](patches/) |
 | Deploy wall-clock (commit → prod) | — | — | measure | blocked: needs a git remote + cluster |
 

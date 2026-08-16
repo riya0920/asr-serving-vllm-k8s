@@ -1,0 +1,54 @@
+{
+  "profile": "spike-8x",
+  "url": "http://localhost:30800",
+  "model": "openai/whisper-large-v3",
+  "base_rps": 4.0,
+  "clips": 3,
+  "requests": 4515,
+  "started_unix": 1786914976.469499,
+  "note": "k3s on WSL2, stub fleet, KEDA queue-depth autoscaling",
+  "phases": [
+    {
+      "phase": "pre",
+      "requests": 248,
+      "errors": 0,
+      "duration_s": 59.26,
+      "achieved_rps": 4.18,
+      "p50_ms": 541.7,
+      "p95_ms": 731.1,
+      "p99_ms": 860.0,
+      "max_ms": 1052.5,
+      "mean_queue_delay_ms": 1.1,
+      "max_queue_delay_ms": 2.7,
+      "generator_healthy": true
+    },
+    {
+      "phase": "spike",
+      "requests": 3744,
+      "errors": 0,
+      "duration_s": 152.39,
+      "achieved_rps": 24.57,
+      "p50_ms": 10760.8,
+      "p95_ms": 43777.0,
+      "p99_ms": 65097.4,
+      "max_ms": 98941.2,
+      "mean_queue_delay_ms": 246.3,
+      "max_queue_delay_ms": 2736.5,
+      "generator_healthy": false
+    },
+    {
+      "phase": "recover",
+      "requests": 523,
+      "errors": 0,
+      "duration_s": 119.91,
+      "achieved_rps": 4.36,
+      "p50_ms": 601.1,
+      "p95_ms": 15427.7,
+      "p99_ms": 23310.7,
+      "max_ms": 30957.9,
+      "mean_queue_delay_ms": 135.3,
+      "max_queue_delay_ms": 2029.0,
+      "generator_healthy": false
+    }
+  ]
+}
