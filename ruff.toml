@@ -1,0 +1,35 @@
+# Explicit lint config so local and CI cannot disagree.
+#
+# Without this file ruff uses whatever its defaults are for the version that happens to be
+# installed, and "passes on my machine, fails in CI" becomes a version-drift problem rather
+# than a code problem. That happened here: local runs picked up a config from a parent
+# directory while the runner had none, so the two were enforcing different rule sets.
+#
+# The CI workflow pins the ruff version to match. Change both together or neither.
+
+line-length = 100
+target-version = "py310"
+exclude = ["golden", "results", "patches"]
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # import sorting
+    "B",      # bugbear — B023 (closure over loop variable) caught a real latent bug here
+    "SIM",    # simplify
+    "RUF",    # ruff-specific
+    "BLE",    # blind except — enabled so the deliberate `# noqa: BLE001` suppressions in
+              # the benchmark scripts stay meaningful. Those catch-alls are intentional:
+              # a failed request is data to record, not a reason to abort a run.
+]
+ignore = [
+    "E501",   # line length: enforced by line-length above, not worth failing a build over
+    "E402",   # module import not at top: bench/ scripts deliberately sys.path.insert first
+]
+
+[lint.per-file-ignores]
+# The stub and the benchmark scripts print to stdout by design; they are operator tools.
+"bench/*" = ["T201"]
+"ci/*" = ["T201"]
+"infra/stub/*" = ["T201"]

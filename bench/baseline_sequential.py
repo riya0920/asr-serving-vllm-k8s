@@ -100,7 +100,10 @@ def main() -> None:
     latencies, hyps, tokens = [], [], []
     wall_start = time.perf_counter()
 
-    for c, wave in zip(clips, audio):
+    # strict=True: if the manifest and the loaded audio ever disagree in length, fail loudly.
+    # A silent truncation here would time fewer clips than the manifest claims and report a
+    # throughput number computed over the wrong denominator.
+    for c, wave in zip(clips, audio, strict=True):
         t = time.perf_counter()
         feats = processor(wave, sampling_rate=16000, return_tensors="pt")
         with torch.inference_mode():
@@ -114,7 +117,7 @@ def main() -> None:
 
     wall = time.perf_counter() - wall_start
     audio_s = sum(c["seconds"] for c in clips)
-    quality = corpus_wer([(c["reference"], h) for c, h in zip(clips, hyps)])
+    quality = corpus_wer([(c["reference"], h) for c, h in zip(clips, hyps, strict=True)])
 
     artifact = {
         "milestone": "M2",

@@ -31,7 +31,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install httpx pyyaml ruff
+        # ruff pinned: an unpinned linter turns 'passes locally, fails in CI' into a
+        # version-drift mystery. ruff.toml in the repo root fixes the rule set to match.
+        run: pip install httpx pyyaml ruff==0.16.3
 
       - name: Lint
         run: ruff check bench ci infra/stub
