@@ -62,9 +62,21 @@ rank would just return the maximum — so the max is reported as the max.
 `ip_forward` not writable, PID 1 is not systemd. Substrate split per ADR-001.
 
 **M2 done.** Golden set: 50 clips, each exactly 30s, whole utterances only, silence-padded,
-81% speech density. Sequential baseline: 0.632 req/s, 19.0x real-time, WER 0.0160.
+81% speech density. Sequential baseline: 0.600 req/s, 18x real-time, WER 0.0160 — reproduced
+to four decimal places on three separate hosts.
 
-Everything else is unmeasured. See `BUILD_PLAN.md`.
+**M3 done.** Continuous batching → 256 batch slots → turbo decoder, 0.600 → 13.07 req/s
+(21.8x), each step isolated. Ceiling proven to be the GPU on A40 ([ADR-003](docs/adr-003-throughput-ceiling.md))
+and the CPU on H100 ([ADR-004](docs/adr-004-cpu-bound-serving.md)).
+
+**M9 done.** Cost per audio hour −92.5% after warm headroom and idle floor.
+
+**Artifact validation done.** `model-manifest.json` pins turbo at revision `41f01f3f…`,
+11 files by SHA-256; the gate passes clean weights and fails a one-byte corruption.
+
+**Blocked, not abandoned:** M5/M6/M8 (Kubernetes, KEDA, spike, canary, deploy timing) need a
+host where root means root — every RunPod product available self-serve is a container. M4
+(speculative decoding) needs implementing in vLLM first.
 
 ### A bug worth recording
 
