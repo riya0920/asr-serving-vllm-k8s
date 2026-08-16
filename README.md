@@ -32,7 +32,9 @@ No number in this repo comes from an estimate, a blog post, or a resume draft.
 | Fleet ready after spike onset | — | **28 s**, queue drained | claim 4 | [ADR-008](docs/adr-008-keda-autoscaling-measured.md) |
 | p99 through 8x step spike | — | not measurable (client-bound) | < 620 ms | generator self-flagged invalid |
 | Speculative decode acceptance | n/a | — | measure | 1 of 2 blockers fixed — [ADR-007](docs/adr-007-spec-decode-actual-status.md), [patch](patches/) |
-| Deploy wall-clock (commit → prod) | — | — | measure | blocked: needs a git remote + cluster |
+| Canary promotion (analysis passes) | — | **74 s** ✅ | claim 14 | [ADR-009](docs/adr-009-canary-rollback-measured.md) |
+| Auto-rollback (analysis fails) | — | **22 s** ✅ | claim 14 | [ADR-009](docs/adr-009-canary-rollback-measured.md) |
+| Deploy wall-clock (commit → prod) | — | — | < 22 min | CI not yet exercised |
 
 ### Throughput and latency are a trade-off, not two independent wins
 
