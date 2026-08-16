@@ -48,7 +48,12 @@ jobs:
 
   quality:
     needs: fast
-    runs-on: [self-hosted, gpu]     # requires a GPU runner; see docs for setup
+    # Gated on a repo variable. Without it, this job sits queued forever waiting for a
+    # runner label that does not exist, and every CI run hangs instead of concluding —
+    # which is worse than not having the job, because "still running" reads as "fine".
+    # Set the repository variable HAS_GPU_RUNNER=true once a GPU runner is registered.
+    if: vars.HAS_GPU_RUNNER == 'true'
+    runs-on: [self-hosted, gpu]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
