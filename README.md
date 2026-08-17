@@ -4,6 +4,7 @@ Speech-to-text serving stack. Whisper-Large on vLLM, autoscaled on Kubernetes by
 shipped through Argo CD with a word-error-rate gate in CI.
 
 ![ci](https://github.com/riya0920/asr-serving-vllm-k8s/actions/workflows/ci.yml/badge.svg)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/riya0920/asr-serving-vllm-k8s/blob/main/notebooks/demo.ipynb)
 
 Transcription traffic is bursty. Meeting load jumps ~8x on the hour and collapses after.
 Provision for peak and you waste the day; provision for average and you drop requests. So the
@@ -16,7 +17,10 @@ Numbers below are measured on rented A40, H100 NVL and A10 GPUs. Raw artifacts i
 
 ## Demo
 
-Start the server and transcribe a 30-second clip:
+[**Run it in Colab**](https://colab.research.google.com/github/riya0920/asr-serving-vllm-k8s/blob/main/notebooks/demo.ipynb) — free T4, about 5 minutes. Builds a golden set from LibriSpeech, transcribes a clip,
+scores it with the same WER code the CI gate uses, and measures the batching speedup.
+
+Locally, start the server and transcribe a 30-second clip:
 
 ```console
 $ vllm serve openai/whisper-large-v3-turbo --port 8000 --max-num-seqs 256
