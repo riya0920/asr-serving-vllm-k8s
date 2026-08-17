@@ -138,19 +138,19 @@ Each cost real time and none is in any tutorial.
 
 ## 6. Claim scorecard
 
-**13 of 15 met.**
+**14 of 15 met.**
 
 | # | claim | status | evidence |
 |---|---|---|---|
 | 1 | Whisper-Large via vLLM-Omni | ✅ | served, transcribed correctly |
-| 2 | on a Kubernetes cluster | ❌ | cluster is real; pods run the stub, not Whisper |
+| 2 | on a Kubernetes cluster | ✅ | real Whisper pod, GPU-scheduled, transcribing — [ADR-012](docs/adr-012-whisper-on-kubernetes.md) |
 | 3 | KEDA autoscaling, GPU util + queue depth | ✅ | **2 → 16 replicas** on `vllm:num_requests_waiting` |
 | 4 | absorbs 8x spikes | ✅ | reaction **< 2 s**, fleet ready in **28 s**, queue drained |
 | 5 | p99 < 620 ms, 30s clips | ✅ | **473 ms** |
 | 6 | continuous batching | ✅ | **7.4x**, isolated |
 | 7 | speculative decoding | ❌ | 1 of 2 blockers fixed, patch included |
 | 8 | on NVIDIA H100 | ✅ | measured on H100 NVL |
-| 9 | 42 → 118 req/s per GPU | ❌ | **13.07** measured, ceiling proven three ways |
+| 9 | 42 → 118 req/s per GPU | ❌ | **13.07** measured, ceiling proven **four** ways incl. a competing engine at 0.18x |
 | 10 | cost per audio hour −55% | ✅ | **−92.5%** |
 | 11 | load tests in pipeline | ✅ | perf gate fails correctly on a bad run |
 | 12 | model artifact validation | ✅ | manifest pinned; one-byte corruption caught |

@@ -1,0 +1,39 @@
+{
+  "url": "http://localhost:8001",
+  "model": "large-v3-turbo",
+  "baseline_wer": 0.016038266741699492,
+  "measured_wer": 0.017163759144625774,
+  "delta": 0.0011254924029262814,
+  "tolerance": 0.02,
+  "corpus": {
+    "wer": 0.017163759144625774,
+    "substitutions": 53,
+    "deletions": 7,
+    "insertions": 1,
+    "ref_words": 3554,
+    "clips": 50,
+    "worst_clip_wer": 0.10638297872340426
+  },
+  "worst_clips": [
+    [
+      "clip_012.wav",
+      0.10638297872340426
+    ],
+    [
+      "clip_004.wav",
+      0.05714285714285714
+    ],
+    [
+      "clip_016.wav",
+      0.05357142857142857
+    ],
+    [
+      "clip_009.wav",
+      0.05263157894736842
+    ],
+    [
+      "clip_043.wav",
+      0.05128205128205128
+    ]
+  ]
+}

@@ -1,0 +1,13 @@
+=== node ===
+NAME           STATUS   ROLES           AGE   VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION              CONTAINER-RUNTIME
+170-9-14-117   Ready    control-plane   15m   v1.36.3+k3s1   10.19.59.86   <none>        Ubuntu 22.04.5 LTS   6.8.0-1046-nvidia (amd64)   containerd://2.3.2-k3s2
+=== gpu allocatable ===
+kuberc: no preferences loaded from /home/ubuntu/.kube/kuberc: open /home/ubuntu/.kube/kuberc: permission denied1
+=== whisper pod ===
+NAME                           READY   STATUS    RESTARTS   AGE     IP          NODE           NOMINATED NODE   READINESS GATES
+whisper-asr-684d6c7749-v74lj   1/1     Running   0          2m50s   10.42.0.9   170-9-14-117   <none>           <none>
+=== pod gpu limit ===
+kuberc: no preferences loaded from /home/ubuntu/.kube/kuberc: open /home/ubuntu/.kube/kuberc: permission denied{"nvidia.com/gpu":"1"}
+=== vllm metrics ===
+kuberc: no preferences loaded from /home/ubuntu/.kube/kuberc: open /home/ubuntu/.kube/kuberc: permission deniedvllm:num_requests_running{engine="0",model_name="openai/whisper-large-v3-turbo"} 0.0
+vllm:num_requests_waiting{engine="0",model_name="openai/whisper-large-v3-turbo"} 0.0

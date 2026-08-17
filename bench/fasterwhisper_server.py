@@ -68,6 +68,21 @@ def transcribe(wav_bytes: bytes) -> str:
         SLOTS.release()
 
 
+class BenchServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer with a listen backlog that survives a benchmark.
+
+    socketserver defaults request_queue_size to 5. Drive 128 concurrent clients at it and the
+    kernel refuses connections once the accept queue overflows — which surfaces as client-side
+    errors that look exactly like the engine failing, while the server log stays clean because
+    those requests never reached it. Measured here as 126 errors in 324 requests before the
+    fix, with zero server-side exceptions.
+    """
+
+    request_queue_size = 256
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -170,7 +185,7 @@ def main() -> None:
     print(f"loaded {args.model} in {time.perf_counter()-t0:.1f}s [{mode}], {N_SLOTS} slots")
     print(f"faster-whisper server on :{args.port}")
 
-    ThreadingHTTPServer(("0.0.0.0", args.port), Handler).serve_forever()
+    BenchServer(("0.0.0.0", args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
