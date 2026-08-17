@@ -45,6 +45,7 @@ Creating the AppProject fixed all three at once.
   down together.
 - The workload is the stub, not Whisper (see [ADR-008](adr-008-keda-autoscaling-measured.md)).
 
-## Claim
+## Scope
 
-**#16 across dev, staging and prod — met**, with the single-cluster caveat recorded above.
+Three environments with genuinely different configuration, promoted through Argo CD, with the
+single-cluster caveat recorded above.

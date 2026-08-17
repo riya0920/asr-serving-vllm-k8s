@@ -59,7 +59,7 @@ Fixing that means understanding how the proposer builds draft inputs for a model
 conditioning comes from encoder hidden states rather than a text prefix. That is upstream
 engineering measured in days, not a configuration change.
 
-## What this means for the resume claim
+## What this means
 
 The honest statement is **not** "vLLM doesn't support it." It is:
 
@@ -68,7 +68,7 @@ The honest statement is **not** "vLLM doesn't support it." It is:
 > the proposer (fixed here, patch included) and unpopulated draft input IDs on the
 > encoder-decoder path (open).
 
-That is a far stronger position than either the original claim or the incorrect denial. It is
+That is a far more precise position than the incorrect denial it replaces. It is
 also a genuine open-source contribution in progress: the patch fixes a real bug that would
 affect any audio multimodal target, not just this project.
 
@@ -81,4 +81,4 @@ compute, and ADR-005/006 found the H100 limited by a serialized per-request path
 decode throughput. Spec decoding targets neither constraint.
 
 Where it *would* help is single-request latency at concurrency 1 — which is the regime where
-the 620 ms p99 claim already passes at 473 ms.
+p99 already measures 473 ms.

@@ -1,6 +1,6 @@
 # ADR-012: Whisper served on Kubernetes, on a GPU
 
-**Status:** MEASURED — claim 2 met
+**Status:** MEASURED
 **Date:** 2026-08-17
 **Hardware:** Lambda A10 24GB — a real VM with root, unlike every self-serve RunPod product
 **Evidence:** `results/m2_whisper_on_k8s_evidence.txt`
@@ -26,7 +26,7 @@ Output for `clip_000.wav`:
 
 which matches the LibriSpeech reference exactly, modulo casing and punctuation.
 
-This closes the gap that made resume bullet 1 unsayable. Previously Whisper ran on rented GPUs
+This closes a real gap in the setup. Previously Whisper ran on rented GPUs
 with no Kubernetes, while KEDA autoscaled a stub on a cluster with no GPU — two machines, one
 sentence. Both halves now exist on one host, and the metric KEDA scales on is published by the
 real engine rather than a simulator.

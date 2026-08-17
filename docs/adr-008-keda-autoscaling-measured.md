@@ -69,7 +69,7 @@ Recorded plainly, because the temptation to over-claim here is strong.
    flagged its own run invalid: *"generator lagged 2736ms — this run measures the load
    generator, not the server."* A single Python client cannot sustain 32 rps of uploads while
    the same laptop hosts k3s, 16 pods and Prometheus on 8 cores. The p99-under-620ms-through-
-   the-spike claim remains unmeasured. The anti-coordinated-omission guard built in M0 is what
+   the-spike figure remains unmeasured. The anti-coordinated-omission guard in the load generator is what
    caught this — without it the run would have produced flattering, meaningless numbers.
 2. **The pods run the stub, not Whisper.** This proves the autoscaling machinery, not
    "Whisper-Large served on Kubernetes."
@@ -79,9 +79,9 @@ Recorded plainly, because the temptation to over-claim here is strong.
 4. **Queue depth was sampled from one pod** through a NodePort, so the per-sample values
    oscillate and are not a fleet-wide sum. The trend is sound; individual readings are not.
 
-## Claims
+## Scope
 
-- **#3 KEDA autoscaling on queue depth — met.** Real KEDA operator, real Prometheus metric,
-  real HPA, real scaling decisions driven by `vllm:num_requests_waiting`.
-- **#4 absorbing 8x spikes — partially met.** The fleet scaled 2→16 and drained the queue.
-  The p99 SLO through the spike is not measurable on this hardware.
+Established: KEDA autoscaling driven by a real `vllm:num_requests_waiting` metric, with real
+HPA scaling decisions, absorbing an 8x step increase by scaling 2→16 and draining the queue.
+
+Not established: p99 through the spike, which is not measurable on this hardware.

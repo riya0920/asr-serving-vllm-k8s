@@ -78,11 +78,11 @@ different attention kernel. The A40 did not need the workaround. The throughput 
 come from vLLM, which does not use that code path, so they are comparable; the sequential
 baselines are not strictly comparable across the two cards.
 
-## What is claimable
+## What this establishes
 
-- "on NVIDIA H100 GPUs" — literally true; Whisper-Large was served on an H100 NVL and measured.
-- The H100 numbers are worse than the A40 numbers and should not be quoted as an improvement.
-- The genuinely interesting finding, and the one worth being able to explain in an interview:
-  **a serving stack can be GPU-bound on one card and CPU-bound on a faster one, and the faster
-  card can be slower end to end.** That was measured here twice, with utilization and power
-  draw as independent corroboration.
+Whisper-Large was served and measured on an H100 NVL. The H100 numbers are worse than the A40
+numbers and should not be read as an improvement.
+
+The useful finding: **a serving stack can be GPU-bound on one card and CPU-bound on a faster
+one, and the faster card can be slower end to end.** Measured twice here, with utilization and
+power draw as independent corroboration.

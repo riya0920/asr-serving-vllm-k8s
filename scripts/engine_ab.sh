@@ -10,12 +10,10 @@
 #   ARM B  faster-whisper   large-v3-turbo (CT2)     batched inference pipeline
 #
 # WHAT THE OUTCOMES MEAN
-#   B >= 3x A   the ceiling was vLLM, not the GPU. 118 becomes an arithmetic question:
-#               (B on this card) x (H100/this-card ratio). The resume bullet must then say
-#               CTranslate2, because a number earned on one engine is not a number for another.
-#   B ~ A       the ceiling is the model on this hardware. 118 req/s per GPU is not reachable
-#               for Whisper-Large at 30s clips, full stop, and the bullet needs its number
-#               changed rather than its engine.
+#   B >= 3x A   the ceiling was vLLM, not the GPU, and the throughput target is a question of
+#               picking the right engine: (B on this card) x (H100/this-card ratio).
+#   B ~ A       the ceiling is the model on this hardware, and no engine swap reaches the
+#               target for Whisper-Large at 30s clips.
 #   B < A       vLLM was already the better choice; keep it and keep the honest number.
 #
 # WER is checked on both arms. A faster engine that transcribes worse has not won anything,

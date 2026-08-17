@@ -58,7 +58,7 @@ there was 3x headroom, and a five-minute experiment said there was none. The exp
 - H100 is ~2.5–3.5x an A40 for this class of work → **33–46 req/s**
 - Target: **118 req/s**
 
-**Roughly 3x short**, on the hardware the resume bullet names, with the engine it names, after
+**Roughly 3x short**, on this hardware, with this engine, after
 continuous batching, a 256-slot scheduler and the turbo decoder. Renting an H100 would not
 produce 118 and should not be expected to.
 
@@ -69,7 +69,7 @@ produce 118 and should not be expected to.
    than vLLM for Whisper specifically. Plausibly 2–3x.
 3. Both stacked could plausibly approach ~100 req/s.
 
-The difficulty: (2) contradicts the bullet, which names vLLM-Omni. A number earned on
+The difficulty: (2) means changing engines. A number earned on
 TensorRT-LLM cannot honestly be reported as a vLLM-Omni number.
 
 ## What is defensible today

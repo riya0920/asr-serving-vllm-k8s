@@ -14,8 +14,7 @@ high utilization, low power, nothing saturated — reads as a serialized per-req
 
 CTranslate2 is a different implementation with its own kernels and batching, so it does not
 share that path. If it were several times faster on identical hardware, 118 req/s would have
-become an arithmetic question, and the resume bullet would simply have needed a different
-engine name.
+become an arithmetic question of picking the right engine.
 
 ## The result
 

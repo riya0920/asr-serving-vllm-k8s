@@ -4,9 +4,9 @@
 #   bash scripts/gpu_k8s_session.sh 2>&1 | tee gpu_k8s.log
 #
 # THE GAP THIS CLOSES
-# Every component of resume bullet 1 has been measured, but on two different machines:
-# Whisper served on rented GPUs with no Kubernetes, and KEDA autoscaling a stub on a cluster
-# with no GPU. The bullet describes one system. This makes it one system.
+# The serving and autoscaling halves had been measured on two different machines: Whisper on
+# rented GPUs with no Kubernetes, and KEDA autoscaling a stub on a cluster with no GPU. This
+# puts both on one host so the whole path is exercised together.
 #
 # Requires a host where root means root AND an NVIDIA GPU is present — a real VM, not a
 # container. Every RunPod product available self-serve fails the first condition (ADR-001);

@@ -56,10 +56,10 @@ Two lessons, both worth more than the demo itself:
 The corrected run shows `Successful([0])` and `Failed([0])`: a real number, fetched over
 service DNS, evaluated against a real condition.
 
-## Claims
+## Scope
 
-- **#14 Argo CD canary rollouts — met** for the canary mechanism: progressive traffic steps,
-  automated Prometheus analysis, and auto-rollback on breach, all measured.
-- Not demonstrated: promotion across **separate dev/staging/prod clusters**. One k3s node hosts
-  a single environment. The `infra/argocd/applications.yaml` manifests define all three with
-  automated sync for dev/staging and manual for prod, but only one was exercised.
+Established: progressive traffic steps, automated Prometheus analysis between them, and
+auto-rollback on a breached condition, all measured.
+
+Not established here: promotion across separate clusters. One k3s node hosts the environments
+as namespaces (see [ADR-010](adr-010-gitops-three-environments.md)).

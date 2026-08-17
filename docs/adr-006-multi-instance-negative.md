@@ -57,7 +57,7 @@ Cumulative best: **0.600 → 13.07 req/s on A40 (21.8x)**, ~6.3 req/s on H100.
 
 Target: 118 req/s per GPU. **Not reached, and no untried lever remains within
 vLLM-Omni serving Whisper.** The three ideas that could still move it — CTranslate2,
-TensorRT-LLM, FP8 — all replace the engine the resume bullet names.
+TensorRT-LLM, FP8 — all replace the serving engine.
 
 ## Recommendation
 

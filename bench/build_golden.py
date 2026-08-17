@@ -6,9 +6,9 @@ This set does double duty and that is intentional:
   - the CI WER gate corpus (M7) — so a model regression is caught against known references
 
 Source is LibriSpeech test-clean: real read speech, public references, redistributable.
-Individual utterances are 2-15s, so they are concatenated into 30s clips (the resume claim
-is about 30s clips, and Whisper's encoder window is 30s — anything shorter is padded to 30s
-anyway and would understate the decode work per request).
+Individual utterances are 2-15s, so they are concatenated into 30s clips. Whisper's encoder
+window is 30s, so anything shorter gets padded to 30s anyway and would understate the decode
+work per request.
 
     python bench/build_golden.py --clips 50 --out golden
 

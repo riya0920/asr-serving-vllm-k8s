@@ -136,48 +136,16 @@ Each cost real time and none is in any tutorial.
 
 ---
 
-## 6. Claim scorecard
+---
 
-**14 of 15 met.**
+## 6. Where it stands
 
-| # | claim | status | evidence |
-|---|---|---|---|
-| 1 | Whisper-Large via vLLM-Omni | ✅ | served, transcribed correctly |
-| 2 | on a Kubernetes cluster | ✅ | real Whisper pod, GPU-scheduled, transcribing — [ADR-012](docs/adr-012-whisper-on-kubernetes.md) |
-| 3 | KEDA autoscaling, GPU util + queue depth | ✅ | **2 → 16 replicas** on `vllm:num_requests_waiting` |
-| 4 | absorbs 8x spikes | ✅ | reaction **< 2 s**, fleet ready in **28 s**, queue drained |
-| 5 | p99 < 620 ms, 30s clips | ✅ | **473 ms** |
-| 6 | continuous batching | ✅ | **7.4x**, isolated |
-| 7 | speculative decoding | ❌ | 1 of 2 blockers fixed, patch included |
-| 8 | on NVIDIA H100 | ✅ | measured on H100 NVL |
-| 9 | 42 → 118 req/s per GPU | ❌ | **13.07** measured, ceiling proven **four** ways incl. a competing engine at 0.18x |
-| 10 | cost per audio hour −55% | ✅ | **−92.5%** |
-| 11 | load tests in pipeline | ✅ | perf gate fails correctly on a bad run |
-| 12 | model artifact validation | ✅ | manifest pinned; one-byte corruption caught |
-| 13 | GitHub Actions pipeline | ✅ | **green in 16 s**, every push |
-| 14 | Argo CD canary | ✅ | promote 74 s / **auto-rollback 22 s** |
-| 16 | across dev, staging, prod | ✅ | 3 namespaces, GitOps-synced; prod gated on a human |
-| 15 | deploy 6 h → 22 min | ✅ | **~90 s** commit → deployed |
+**Reached:** 21.8x throughput over a naive baseline, p99 473 ms at low concurrency, 92% lower
+cost per audio hour, KEDA autoscaling that absorbs an 8x spike by scaling 2 → 16 with sub-2s
+reaction, canary rollouts with automated analysis and 22s auto-rollback, GitOps promotion
+across three environments, and Whisper running on a GPU-scheduled Kubernetes pod.
 
-### The three that are not met, and why
-
-**#9 — 118 req/s per GPU.** Bounded by three independent measurements: A40 GPU-saturated at
-13.07 req/s (100% util, 300 W); H100 CPU-heavy at 5.9 with the GPU at 5%; and GPU-mel
-extraction returning 1.06x. Six optimizations tried, three rejected with data. Not reachable
-with vLLM-Omni serving Whisper.
-
-**#7 — speculative decoding.** vLLM 0.26 *does* accept encoder-decoder targets (an earlier
-claim here that it does not was wrong). One blocker fixed and patched; the second — draft
-input IDs unpopulated on the encoder-decoder path — is upstream work.
-
-**#2 — Whisper on Kubernetes.** The cluster is real and so is everything running on it, but
-the pods serve the stub. Closing this needs a GPU node in the cluster; every self-serve
-RunPod product is a container, and WSL2 has no GPU passthrough configured here.
-
-### On 42 → 118
-
-The bullet claims 2.8x. This project measured **21.8x**. The *ratio* is far better than
-claimed; the *absolute numbers* are far lower. A naive Whisper-Large baseline is 0.6 req/s on
-A40 and 0.377 on H100 — nothing resembling 42. For 42 to be a naive baseline, something
-fundamental would have to differ: much shorter clips, many GPUs counted as one, or audio-
-seconds counted as requests.
+**Not reached:** 118 req/s per GPU. The measured ceiling is 13.07 on an A40, and four separate
+experiments each failed to move it — a faster GPU, GPU-side mel extraction, multiple engines
+per card, and a different inference engine. Also incomplete: speculative decoding, which is
+blocked by a vLLM bug that is diagnosed and half-patched but needs upstream work.

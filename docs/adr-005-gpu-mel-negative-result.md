@@ -84,7 +84,7 @@ hardware, and not for want of the obvious optimizations — those were tried and
 
 ## What still might reach it
 
-Untested, and each changes the stack the resume bullet describes:
+Untested, and each replaces part of the serving stack:
 
 - **CTranslate2 / faster-whisper** — purpose-built for Whisper, does the front end differently
 - **TensorRT-LLM** — NVIDIA's own encoder-decoder path, heavily tuned
