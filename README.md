@@ -1,125 +1,179 @@
-# ASR Serving — Whisper-Large on vLLM-Omni + Kubernetes autoscaling
+# ASR serving: Whisper-Large on vLLM with Kubernetes autoscaling
 
-Elastic ASR serving: Whisper-Large-v3 served through [vLLM-Omni](https://vllm.ai/blog/vllm-omni)
-with continuous batching and shared-encoder speculative decoding, on a Kubernetes fleet that
-scales on queue depth via KEDA, delivered through WER-gated CI and Argo CD canary rollouts.
+Speech-to-text serving stack built around three problems: making Whisper-Large fast enough to
+serve, scaling the fleet when traffic spikes, and shipping changes without breaking accuracy.
 
-The design question: real ASR traffic spikes 8x at the top of the hour when meetings start.
-You cannot provision for peak and idle at 12%. Can the fleet breathe — absorb the spike under
-a p99 SLO, shrink back to protect cost — and can changes ship to it in minutes?
+Meeting-transcription traffic is bursty. Load jumps ~8x at the top of the hour when meetings
+start, then falls off. Provisioning for peak wastes most of the day; provisioning for average
+drops requests. So the fleet has to scale on a signal that moves *before* latency degrades,
+and deploys have to be safe enough to do often.
 
-## Scoreboard
+Everything below was measured on rented GPUs (A40, H100 NVL, A10) and a k3s cluster. Raw run
+artifacts are in `results/`.
 
-Every number here starts empty and is filled in **only** from a run artifact in `results/`.
-No number in this repo comes from an estimate, a blog post, or a resume draft.
+## Results
 
-| Metric | Baseline (A40) | Measured | Target | Evidence |
-|---|---|---|---|---|
-| Throughput (req/s per GPU) | 0.600 | **13.07** (21.8x) | 118 ✗ unreachable | [M3](results/m3_turbo_latency.json), [ADR-003](docs/adr-003-throughput-ceiling.md) |
-| Real-time factor | 18x | **392x** | — | [M3](results/m3_turbo_latency.json) |
-| p99 latency, 30s clip @ c=1 | 2214 ms (max) | **473 ms** ✅ | < 620 ms | [M3](results/m3_turbo_latency.json) |
-| p99 latency @ c=2 | — | 636 ms | < 620 ms | [M3](results/m3_turbo_latency.json) |
-| Corpus WER, large-v3 | **0.0160** | — | gate reference | [M2](results/m2_baseline_sequential.json) |
-| Corpus WER, turbo | — | **0.0236** (+0.0076) ✅ | within +0.02 | CI gate, M3 |
-| Cost per audio hour | — | **−92.5%** ✅ | −55% | [M9](results/m9_cost_model.json) |
-| GPU saturation proof (A40) | — | **100% util @ 300 W** | — | [ADR-003](docs/adr-003-throughput-ceiling.md) |
-| Served on NVIDIA H100 | — | **yes, measured** ✅ | claim 8 | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
-| H100 peak throughput | — | **5.93 req/s** (worse than A40) | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
-| H100 bottleneck | — | **CPU-heavy: 23 cores busy, GPU 5%** | — | [ADR-004](docs/adr-004-cpu-bound-serving.md) |
-| GPU-mel experiment | 5.90 req/s | **6.27 req/s (1.06x)** ✗ | > 3x to matter | [ADR-005](docs/adr-005-gpu-mel-negative-result.md) |
-| KEDA autoscaling on queue depth | — | **2 → 16 replicas** ✅ | claim 3 | [ADR-008](docs/adr-008-keda-autoscaling-measured.md) |
-| Autoscaler reaction to spike | — | **< 2 s** ✅ | claim 4 | [timeline](results/m6_wsl_spike_timeline.csv) |
-| Fleet ready after spike onset | — | **28 s**, queue drained | claim 4 | [ADR-008](docs/adr-008-keda-autoscaling-measured.md) |
-| p99 through 8x step spike | — | not measurable (client-bound) | < 620 ms | generator self-flagged invalid |
-| Speculative decode acceptance | n/a | — | measure | 1 of 2 blockers fixed — [ADR-007](docs/adr-007-spec-decode-actual-status.md), [patch](patches/) |
-| Canary promotion (analysis passes) | — | **74 s** ✅ | claim 14 | [ADR-009](docs/adr-009-canary-rollback-measured.md) |
-| Auto-rollback (analysis fails) | — | **22 s** ✅ | claim 14 | [ADR-009](docs/adr-009-canary-rollback-measured.md) |
-| CI pipeline (lint, WER tests, manifests) | — | **green, 16 s** ✅ | claim 13 | [run #6](https://github.com/riya0920/asr-serving-vllm-k8s/actions) |
-| Deploy wall-clock (commit → canary promoted) | 6 h (claimed) | **~90 s** ✅ | < 22 min | 16 s CI + 74 s canary |
+Single GPU, 50 clips of exactly 30 seconds, LibriSpeech test-clean.
 
-### Throughput and latency are a trade-off, not two independent wins
+| configuration | throughput | vs baseline |
+|---|---|---|
+| HuggingFace transformers, one request at a time | 0.60 req/s | 1x |
+| vLLM continuous batching | 4.45 req/s | 7.4x |
+| batch slots 32 → 256 | 7.36 req/s | 12.3x |
+| `whisper-large-v3-turbo` (4 decoder layers vs 32) | **13.07 req/s** | **21.8x** |
 
-Read the first three rows together. 13.07 req/s is measured at concurrency 128, where p99 is
-16 s. The 473 ms p99 is measured at concurrency 1, where throughput is 2.79 req/s. **There is
-no operating point that delivers both**, because throughput comes from batching and batching
-costs latency.
+Latency, turbo, same GPU:
 
-The architecture that reconciles them is the fleet: KEDA holds each pod at low concurrency so
-p99 stays under SLO, and aggregate throughput comes from pod count. That makes high aggregate
-throughput and low p99 compatible — but it makes them compatible *across the fleet*, never
-*per GPU*.
+| concurrency | throughput | p50 | p99 |
+|---|---|---|---|
+| 1 | 2.79 req/s | 362 ms | 473 ms |
+| 2 | 3.90 req/s | 525 ms | 636 ms |
+| 8 | 5.48 req/s | 1442 ms | 1902 ms |
+| 128 | 13.07 req/s | ~8.5 s | ~17 s |
 
-**Baseline** = naive sequential Whisper-Large-v3 (fp16), one request at a time, HF transformers.
-**Current** = whatever the most recent run in `results/` actually produced.
+Throughput and latency trade against each other directly. Peak throughput happens at
+concurrency 128, where p99 is 17 seconds. Sub-500ms p99 happens at concurrency 1, where
+throughput is 2.79 req/s. A fleet gets both by keeping each pod at low concurrency and adding
+pods, which is what the autoscaler is for.
 
-### Read the hardware line before quoting any of this
+Cost per audio hour drops 92% against the sequential baseline (95% raw, less the warm headroom
+and minimum-replica floor the autoscaler needs).
 
-Baseline measured on an **NVIDIA A40 48GB**, not an H100 — RunPod pods cannot host Kubernetes
-(see [ADR-001](docs/adr-001-substrate.md)), so the fleet work moved elsewhere and the model
-work stayed here. Every *ratio* in this project is therefore honest: M3 and M4 are measured
-against this same baseline on this same card. No *absolute* per-GPU throughput number here is
-an H100 number, and none should be quoted as one.
+Accuracy: 1.60% WER for large-v3, 2.36% for turbo, measured on the same golden set and
+reproduced to four decimal places across three hosts.
 
-No p99 is published for the baseline. 50 samples cannot measure a 99th percentile — nearest
-rank would just return the maximum — so the max is reported as the max.
+## Autoscaling
 
-## Honest status
+KEDA scales on **queue depth** (`vllm:num_requests_waiting`), not GPU utilization. Utilization
+saturates: once every batch slot is busy it reads ~100% whether two requests are queued or two
+hundred, so it cannot tell you how many pods to add. Queue depth is unbounded and starts
+climbing the moment arrival rate exceeds service rate.
 
-**M1 done.** RunPod standard pods cannot host a Kubernetes node: no `CAP_SYS_ADMIN`,
-`ip_forward` not writable, PID 1 is not systemd. Substrate split per ADR-001.
+Measured against an 8x step-function load increase:
 
-**M2 done.** Golden set: 50 clips, each exactly 30s, whole utterances only, silence-padded,
-81% speech density. Sequential baseline: 0.600 req/s, 18x real-time, WER 0.0160 — reproduced
-to four decimal places on three separate hosts.
+```
+t=44s   queue appears
+t=46s   HPA raises desired replicas 2 → 5     (reaction inside one 2s sample)
+t=56s   5 → 10
+t=66s   10 → 16
+t=72s   16 pods ready, queue drained
+```
 
-**M3 done.** Continuous batching → 256 batch slots → turbo decoder, 0.600 → 13.07 req/s
-(21.8x), each step isolated. Ceiling proven to be the GPU on A40 ([ADR-003](docs/adr-003-throughput-ceiling.md))
-and the CPU on H100 ([ADR-004](docs/adr-004-cpu-bound-serving.md)).
+Three triggers, and KEDA takes the maximum: in-flight requests hold steady-state occupancy at
+~70% so a spike's first seconds land on warm pods; queue depth drives the surge; GPU
+utilization acts only as a scale-down guard so the fleet does not shrink while the GPUs are
+still busy. Scale-up reacts immediately, scale-down waits 10 minutes, because dropping a pod
+30 seconds before the next spike costs a full cold start.
 
-**M9 done.** Cost per audio hour −92.5% after warm headroom and idle floor.
+## Delivery
 
-**Artifact validation done.** `model-manifest.json` pins turbo at revision `41f01f3f…`,
-11 files by SHA-256; the gate passes clean weights and fails a one-byte corruption.
+GitHub Actions runs lint, unit tests for the WER math, and manifest validation on every push.
+Behind a GPU runner it also checksums model weights, runs a WER gate over the golden set, and
+runs a load test asserting throughput and p99 have not regressed.
 
-**Blocked, not abandoned:** M5/M6/M8 (Kubernetes, KEDA, spike, canary, deploy timing) need a
-host where root means root — every RunPod product available self-serve is a container. M4
-(speculative decoding) needs implementing in vLLM first.
+The WER gate exists because of a specific failure: a bad preprocessing config, wrong language
+token, or truncated weight download does not crash anything. The container starts, health
+checks pass, requests return 200 with plausible English in them, and the only symptom is worse
+transcripts. Without a gate, users find out first.
 
-### A bug worth recording
+Argo CD reconciles three environments from this repo (`envs/dev`, `envs/staging`, `envs/prod`).
+Dev and staging self-heal automatically; prod has no automated sync policy, so a change reaches
+it only when someone syncs it. Argo Rollouts does the canary: traffic steps 25% → 50% → 100%
+with automated Prometheus analysis between steps.
 
-The first M2 run reported WER **0.1504**. The model was fine — the golden set was not.
-`build_golden.py` filled its buffer past 30s, cut the audio at exactly 30s, and dropped the
-whole trailing utterance from the reference, leaving unreferenced speech in every clip.
-Whisper transcribed it correctly and every word scored as an insertion.
+Measured: canary promotion 74s when analysis passes, automatic rollback 22s when it fails.
+Commit to deployed is about 90 seconds for the gates that run without a GPU.
 
-The error breakdown is what gave it away: 45 substitutions but 277 deletions and 224
-insertions. Substitutions are what a model gets *wrong*; deletions and insertions at that
-ratio are an alignment problem. After the fix, substitutions stayed at 45 while deletions
-fell to 5 and insertions to 7.
+## Where the performance ceiling is
 
-Had 0.1504 been committed as the CI reference, the gate would have permitted a model to
-degrade to ~15% WER and still pass — the exact silent failure the gate exists to catch.
+Four experiments, each set up so a wrong hypothesis would show clearly.
 
-Two known risks are tracked openly rather than buried:
+**A40 is GPU-bound.** 100% utilization at 300W, the card's full TDP. Running four load
+generator processes instead of one gave 0.90x, so there was no headroom being missed.
 
-1. **Speculative decoding is not supported for encoder-decoder models in vLLM today**
-   ([vllm#7366](https://github.com/vllm-project/vllm/issues/7366) — the enc-dec path asserts it
-   off). M4 implements the narrow shared-encoder case. Until M4 lands and reports an acceptance
-   rate, this project does not claim speculative decoding.
-2. **Speculative decoding and continuous batching compete for the same resource.** Spec decode
-   pays off because decode steps leave compute idle; continuous batching exists to fill that
-   idle compute with other requests. The gain measured at batch=1 will not hold at batch=64.
-   Every spec-decode number in this repo is reported at production batch size, and the batch=1
-   number is reported next to it so the gap is visible.
+**H100 is not, and is slower.** 5.93 req/s against the A40's 13.07, with the GPU at 23-30% and
+126W while the engine burned 23 CPU cores. A card with roughly 3x the compute delivered less
+than half the throughput, because Whisper's log-mel front end runs on CPU inside the engine
+process and becomes the constraint once the GPU is fast enough.
+
+**Moving mel extraction to the GPU did not fix it.** Engine CPU dropped from 23 cores to 16 and
+GPU utilization doubled, confirming the work moved, but throughput improved 1.06x. So mel was a
+large CPU consumer but not the binding constraint. Afterwards neither CPU nor GPU was saturated
+(16 of 192 cores, GPU at 50% drawing 130W), which points at a serialized per-request path
+inside vLLM's encoder-decoder implementation.
+
+**faster-whisper was 5.7x slower.** CTranslate2 is purpose-built for Whisper and does not share
+vLLM's code path, so it was the obvious alternative. It came in at 1.89 req/s against vLLM's
+10.72 on the same A10, both pinned at the card's 150W TDP. It did produce better transcripts
+(1.72% WER). Caveat: the test server batches segments within a file, not across concurrent
+requests the way vLLM does, so this measures naive faster-whisper serving rather than its best
+form.
+
+Speculative decoding is partially implemented. vLLM 0.26 accepts encoder-decoder targets, but
+two bugs block Whisper: the draft-model proposer assumes every multimodal model is a vision
+model and reads `image_token_index` unconditionally (fixed, see `patches/`), and draft input IDs
+are never populated on the encoder-decoder path (open, needs upstream work).
+
+## Running it
+
+```bash
+# build the golden set and measure a baseline (needs a GPU)
+python bench/build_golden.py --clips 50 --out golden
+python bench/baseline_sequential.py --golden golden --out results/baseline.json
+
+# serve and load test
+vllm-omni serve openai/whisper-large-v3-turbo --port 8000 --max-num-seqs 256
+python bench/loadgen.py --url http://localhost:8000 --audio-dir golden/audio \
+  --profile sweep --concurrency-list 1,8,32,128 --out results/sweep.json
+
+# 8x step-function spike
+python bench/loadgen.py --url http://localhost:8000 --audio-dir golden/audio \
+  --profile spike-8x --rps 4 --out results/spike.json
+
+# cluster: k3s + Prometheus + KEDA, then the stub fleet for CPU-only testing
+bash scripts/kind_up.sh
+kubectl apply -f infra/keda/scaledobject.yaml
+```
+
+The load generator is open-loop with Poisson arrivals, and measures latency from *scheduled*
+send time rather than actual send time. A closed-loop generator throttles itself exactly when
+the server slows down, which hides the overload you are trying to measure. It also fails its own
+run if the generator itself lagged more than 50ms, since at that point the numbers describe the
+client rather than the server.
+
+`infra/stub/` is a fake engine that exposes the same metrics and models the same queueing
+behaviour. It exists so the autoscaling and delivery work can be developed on a laptop instead
+of a rented GPU.
 
 ## Layout
 
 ```
-bench/       baseline harness + step-function load generator
-scripts/     environment probes and setup
-infra/       k8s manifests, KEDA ScaledObject, Argo CD apps  (M5+)
-ci/          GitHub Actions workflows, WER gate              (M7+)
-golden/      golden audio clips + reference transcripts      (M2)
-results/     raw run artifacts — the only source of numbers
-docs/        design notes and decision records
+bench/     load generator, WER scoring, baseline harness, engine servers
+ci/        WER gate, perf gate, weight verification, manifest validator
+infra/     k8s manifests, KEDA ScaledObject, Argo CD apps, Rollouts canary, stub engine
+envs/      dev / staging / prod, reconciled by Argo CD
+scripts/   cluster setup, environment probes, benchmark sessions
+patches/   vLLM fix for audio multimodal speculative decoding
+results/   raw run artifacts, one per measurement
+docs/      decision records, including the experiments that failed
 ```
+
+## Notes
+
+A few things that cost real time and are not in any tutorial:
+
+- Container-based GPU hosts (RunPod pods and similar) cannot run Kubernetes. No `CAP_SYS_ADMIN`,
+  `ip_forward` is read-only, and PID 1 is not systemd. WSL2 works, since it has systemd and
+  cgroup v2.
+- Ubuntu 26.04's WSL image ships without iptables. k3s logs that as informational, starts
+  anyway, and then pod sandboxes churn endlessly while containers exit 255 — which looks like an
+  application crash loop.
+- As of August 2026 the default PyPI wheels for both torch and vLLM require CUDA 13, while many
+  rentable GPUs run 12.x drivers a tenant cannot upgrade. torch has a pinnable cu128 index;
+  vLLM does not.
+- `vllm/vllm-openai` ships without audio dependencies, so a healthy pod returns HTTP 400 on
+  every audio request until librosa and soundfile are installed.
+- On a single-GPU node, `RollingUpdate` deadlocks: the new pod waits for a GPU the old pod
+  holds, and `kubectl get pods` still shows a Running pod. Use `Recreate`.
+- k3s only wires the NVIDIA runtime into containerd if the toolkit was installed before k3s
+  started. Otherwise it needs a restart plus a `RuntimeClass` named `nvidia`.
