@@ -21,3 +21,10 @@ results/*.csv
 results/**/raw/
 
 .DS_Store
+
+# Terraform (keep terraform/.terraform.lock.hcl; drop state + downloaded plugins)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/tfplan
+crash.log

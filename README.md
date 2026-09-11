@@ -169,6 +169,37 @@ Measured: canary promotion 74s, automatic rollback 22s, commit to deployed about
 
 ---
 
+## The stack as Terraform
+
+`infra/` is applied by Argo CD from YAML; `terraform/` declares the same objects as
+parameterized HCL for anyone who stands this up with Terraform instead — kept
+alongside the manifests, not replacing the GitOps path. It covers exactly what was
+applied by hand: the workload (Namespace, Deployment, Service, PodDisruptionBudget),
+the autoscaling policy (KEDA ScaledObject + TriggerAuthentication, all three
+triggers), and monitoring (the Prometheus ServiceMonitor) — with the knobs that used
+to be edited across four files now single reviewed variables (min/max replicas,
+queue and headroom thresholds, image, GPU count).
+
+**Plans cleanly with no cluster:**
+
+```
+$ terraform -chdir=terraform init
+$ terraform -chdir=terraform validate   # Success! The configuration is valid.
+$ terraform -chdir=terraform plan       # Plan: 7 to add, 0 to change, 0 to destroy.
+```
+
+It uses the `gavinbunney/kubectl` provider, whose `kubectl_manifest` computes the
+plan for new objects client-side — so `plan` works offline and without KEDA's or
+Prometheus's CRDs installed. (The `hashicorp/kubernetes` `kubernetes_manifest`
+resource cannot: it fetches the CRD schema from a live cluster at plan time.)
+`apply` points at a real cluster via kubeconfig.
+
+**Terraform vs `kubectl apply` by hand:** one reviewed diff for a change instead of
+a hunt through the YAML, typed variables and validation, and a plan that states
+exactly what will change before it does. What it does **not** replace is Argo CD's
+continuous reconciliation and canary analysis — Terraform provisions, GitOps keeps
+it in sync. This is the "stand it up with Terraform" option, not a migration off Argo.
+
 ## Where the ceiling is
 
 Four experiments. Each would have shown clearly if the hypothesis held.
