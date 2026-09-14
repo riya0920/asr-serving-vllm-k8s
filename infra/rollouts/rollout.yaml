@@ -22,7 +22,7 @@ spec:
       canaryService: whisper-asr-canary
       stableService: whisper-asr
       maxSurge: 1
-      maxUnavailable: 0      # a GPU pod takes minutes to replace — never trade away capacity
+      maxUnavailable: 0      # a GPU pod takes minutes to replace: never trade away capacity
 
       analysis:
         # Analysis starts with the FIRST canary pod and runs for the whole rollout, rather

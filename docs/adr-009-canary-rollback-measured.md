@@ -6,8 +6,8 @@
 
 ## What was installed
 
-- **Argo Rollouts** — the canary controller
-- **Argo CD core** — application-controller, repo-server, redis, applicationset-controller
+- **Argo Rollouts**: the canary controller
+- **Argo CD core**: application-controller, repo-server, redis, applicationset-controller
 
 Both healthy alongside Prometheus, KEDA and the stub fleet on 3.7 GB of RAM.
 
@@ -20,7 +20,7 @@ except for the threshold.
 | run | floor | AnalysisRun | measurements | rollout | time |
 |---|---|---|---|---|---|
 | good | `0` | **Successful** | `Successful([0])` ×3 | **Healthy** | 74 s |
-| bad | `999999999` | **Failed** | `Failed([0])` ×2 | **Degraded — rolled back** | 22 s |
+| bad | `999999999` | **Failed** | `Failed([0])` ×2 | **Degraded: rolled back** | 22 s |
 
 Same query, same returned value, opposite verdicts. The gate passes on merit and fails on
 merit, which is the only property that makes it a gate. The bad revision's ReplicaSet went to
@@ -28,7 +28,7 @@ zero while the previous revision retained its replicas.
 
 ## A false positive I nearly published
 
-The first attempt *looked* like a success — good canary promoted, bad canary rolled back, both
+The first attempt *looked* like a success: good canary promoted, bad canary rolled back, both
 with plausible timings. It was wrong.
 
 Both AnalysisRuns showed `phase=Error`, and the measurements said:
@@ -40,7 +40,7 @@ connect: no route to host
 
 The AnalysisTemplate had Prometheus's **pod IP** baked in, captured when the template was
 written. The pod restarted, the IP moved to `10.42.0.174`, and every measurement failed. Five
-consecutive errors exceeded Argo's `consecutiveErrorLimit`, which aborts a rollout — so the
+consecutive errors exceeded Argo's `consecutiveErrorLimit`, which aborts a rollout, so the
 "auto-rollback" was **error-driven, not analysis-driven**. The observable outcome was identical
 to success.
 
@@ -50,7 +50,7 @@ Two lessons, both worth more than the demo itself:
    (`prometheus-operated.monitoring.svc:9090`). Pod IPs are ephemeral by design.
 2. **A rollback is not evidence that a gate works.** Argo aborts on failed analysis *and* on
    errored analysis, and the rollout phase looks the same either way. Read the AnalysisRun's
-   own phase and its per-measurement values — `Failed([0])` versus `Error(no route to host)` is
+   own phase and its per-measurement values: `Failed([0])` versus `Error(no route to host)` is
    the difference between a working gate and a broken one that happens to abort.
 
 The corrected run shows `Successful([0])` and `Failed([0])`: a real number, fetched over

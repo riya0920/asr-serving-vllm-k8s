@@ -1,6 +1,6 @@
-# ADR-006: Multiple engines per GPU — also rejected
+# ADR-006: Multiple engines per GPU: also rejected
 
-**Status:** MEASURED — hypothesis rejected
+**Status:** MEASURED: hypothesis rejected
 **Date:** 2026-08-16
 **Evidence:** `results/c4_*.json`
 
@@ -10,7 +10,7 @@ ADR-005 found that after moving mel extraction to the GPU, *neither* resource wa
 16 of 192 CPU cores busy, GPU at 50% utilization but only ~130 W. That signature points at a
 serialized per-request path inside one engine process rather than a resource ceiling.
 
-If that diagnosis is right, the fix is not tuning one engine — it is running several. Turbo is
+If that diagnosis is right, the fix is not tuning one engine; it is running several. Turbo is
 1.6 GB of weights against 94 GB of VRAM and KV cache peaked at 5%, so a dozen fit. Each engine
 gets its own process, CUDA context and serialized path.
 
@@ -35,7 +35,7 @@ not the constraint (192 cores), and the GPU was not saturated (47% at a third of
 multiple CUDA contexts on one device do add is scheduling and context-switch overhead, and for
 this workload that overhead exceeds the parallelism gained.
 
-So the serialization ADR-005 identified is not per-*process*. It sits somewhere shared —
+So the serialization ADR-005 identified is not per-*process*. It sits somewhere shared:
 the GPU's scheduler, the driver, or a synchronisation point in vLLM's encoder-decoder path
 that every context hits. Distinguishing those needs Nsight profiling inside the engine, which
 is upstream work.
@@ -56,8 +56,8 @@ Everything tried, measured, on the same golden set:
 Cumulative best: **0.600 → 13.07 req/s on A40 (21.8x)**, ~6.3 req/s on H100.
 
 Target: 118 req/s per GPU. **Not reached, and no untried lever remains within
-vLLM-Omni serving Whisper.** The three ideas that could still move it — CTranslate2,
-TensorRT-LLM, FP8 — all replace the serving engine.
+vLLM-Omni serving Whisper.** The three ideas that could still move it, CTranslate2,
+TensorRT-LLM, FP8, all replace the serving engine.
 
 ## Recommendation
 

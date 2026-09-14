@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M2 — the naive baseline. Whisper-Large-v3, HF transformers, one request at a time.
+"""M2: the naive baseline. Whisper-Large-v3, HF transformers, one request at a time.
 
 This is the denominator. Every speedup claim in this project is measured against the JSON
 this script writes, on the same GPU and the same golden set. If the hardware changes, the
@@ -9,7 +9,7 @@ speedup, it is a hardware comparison wearing a costume.
     python bench/baseline_sequential.py --golden golden --out results/m2_baseline_sequential.json
 
 Records both throughput AND word error rate. The WER here becomes the reference value the
-CI gate (M7) compares against — a change that makes serving faster and transcripts worse
+CI gate (M7) compares against: a change that makes serving faster and transcripts worse
 must fail, and it cannot fail if nobody wrote down what "before" was.
 """
 
@@ -31,7 +31,7 @@ def gpu_info() -> dict:
     try:
         import torch
         if not torch.cuda.is_available():
-            return {"device": "cpu", "note": "no CUDA — baseline will be meaningless for serving"}
+            return {"device": "cpu", "note": "no CUDA: baseline will be meaningless for serving"}
         i = torch.cuda.get_device_properties(0)
         return {
             "device": i.name,
@@ -69,7 +69,7 @@ def main() -> None:
     manifest = json.loads((args.golden / "manifest.json").read_text())
     clips = manifest["clips"]
     if not clips:
-        raise SystemExit("golden set is empty — run bench/build_golden.py first")
+        raise SystemExit("golden set is empty: run bench/build_golden.py first")
 
     dtype = getattr(torch, args.dtype)
     print(f"loading {args.model} ({args.dtype})...")
@@ -79,7 +79,7 @@ def main() -> None:
         args.model, torch_dtype=dtype, low_cpu_mem_usage=True
     ).to("cuda").eval()
     load_s = time.perf_counter() - load_t
-    print(f"loaded in {load_s:.1f}s  (this is the number that dominates pod cold start — M5)")
+    print(f"loaded in {load_s:.1f}s  (this is the number that dominates pod cold start: M5)")
 
     audio = []
     for c in clips:

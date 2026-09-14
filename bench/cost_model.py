@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M9 — cost per audio hour, derived from measured throughput.
+"""M9: cost per audio hour, derived from measured throughput.
 
 The useful property here: cost per audio hour is proportional to GPU-hours per audio-hour,
 so the RATIO between two configurations is independent of what you actually pay per GPU-hour.

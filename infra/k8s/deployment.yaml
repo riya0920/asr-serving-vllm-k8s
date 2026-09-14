@@ -14,7 +14,7 @@ spec:
   selector:
     app: whisper-asr
   ports:
-    - name: http          # named port — the ServiceMonitor and Rollout analysis select on this
+    - name: http          # named port: the ServiceMonitor and Rollout analysis select on this
       port: 8000
       targetPort: http
 ---
@@ -28,7 +28,7 @@ metadata:
 spec:
   # No replicas field on purpose. KEDA owns replica count via the HPA it creates; setting it
   # here means every Argo CD sync fights the autoscaler and yanks the fleet back to a fixed
-  # size mid-spike. Argo CD is told to ignore this field too — see infra/argocd/.
+  # size mid-spike. Argo CD is told to ignore this field too: see infra/argocd/.
   selector:
     matchLabels:
       app: whisper-asr
@@ -66,7 +66,7 @@ spec:
             failureThreshold: 60             # up to 10 minutes to become live
           readinessProbe:
             # Gates traffic until weights are loaded. Without it, a scale-up event shows up
-            # as a burst of 503s instead of added capacity — the spike test would record the
+            # as a burst of 503s instead of added capacity: the spike test would record the
             # autoscaler making things worse.
             httpGet: { path: /health, port: http }
             periodSeconds: 5
@@ -110,7 +110,7 @@ metadata:
   name: whisper-asr
   namespace: asr
 spec:
-  minAvailable: 2      # matches KEDA minReplicaCount — node drains must not empty the fleet
+  minAvailable: 2      # matches KEDA minReplicaCount: node drains must not empty the fleet
   selector:
     matchLabels:
       app: whisper-asr

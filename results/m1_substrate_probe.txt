@@ -4,7 +4,7 @@
   distro : Ubuntu 22.04.4 LTS
   cpus   : 96
   memory : 503Gi
-  [WARN] running inside a container — this is the thing that usually blocks k3s
+  [WARN] running inside a container: this is the thing that usually blocks k3s
 
 === GPU ===
   NVIDIA A40, 46068 MiB, 570.195.03
@@ -12,7 +12,7 @@
 
 === Privileges (k3s needs these) ===
   Current: cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap=ep
-  [FAIL] CAP_SYS_ADMIN missing — kubelet cannot manage mounts/cgroups
+  [FAIL] CAP_SYS_ADMIN missing: kubelet cannot manage mounts/cgroups
   [PASS] running as root
 
 === cgroups ===
@@ -20,8 +20,8 @@
   [PASS] cgroup hierarchy is writable
 
 === Kernel modules and networking ===
-  [WARN] module br_netfilter not loadable — k3s may fall back or fail on pod networking
-  [WARN] module overlay not loadable — k3s may fall back or fail on pod networking
+  [WARN] module br_netfilter not loadable: k3s may fall back or fail on pod networking
+  [WARN] module overlay not loadable: k3s may fall back or fail on pod networking
   [FAIL] cannot set ip_forward
 
 === Installing k3s (the actual test) ===
@@ -50,10 +50,10 @@
 === VERDICT ===
   pass=3  fail=3  warn=3
 
-  FAIL — this substrate cannot host a real Kubernetes node.
+  FAIL: this substrate cannot host a real Kubernetes node.
   Keep model work (M2-M4) here; move cluster work to bare metal or a
   root-access VM. Record the choice in docs/adr-001-substrate.md.
 
 === Cleanup ===
   to remove k3s:  /usr/local/bin/k3s-uninstall.sh
-  STOP THE POD when done — it bills while idle.
+  STOP THE POD when done: it bills while idle.

@@ -17,7 +17,7 @@ Two design decisions that make the numbers honest:
 2. LATENCY IS MEASURED FROM SCHEDULED SEND TIME, not from actual send time. If the
    generator itself falls behind, that queueing delay counts against the measurement
    rather than being silently discarded. `queue_delay_ms` in the output reports how much
-   of the total came from generator lag — if it is not near zero, the generator is the
+   of the total came from generator lag; if it is not near zero, the generator is the
    bottleneck and the run is invalid.
 
 Usage:
@@ -92,7 +92,7 @@ class PhaseStats:
 def pct(values: list[float], q: float) -> float:
     """Nearest-rank percentile: the smallest value at or above which q of the samples fall.
 
-    math.ceil, not round() — Python's round() is banker's rounding, so round(5.5) is 6 and
+    math.ceil, not round(): Python's round() is banker's rounding, so round(5.5) is 6 and
     p50 of 10 samples would return the 6th value instead of the 5th. Nearest rank also means
     p99 of 50 samples is the max, which is honest: with 50 samples you have not measured p99
     and the number should not pretend otherwise.
@@ -215,7 +215,7 @@ async def run_open_loop(
 
 
 def poisson_schedule(rps: float, duration: float, start: float, phase: str, rng: random.Random):
-    """Poisson arrivals — real traffic is not evenly spaced, and even spacing understates p99."""
+    """Poisson arrivals: real traffic is not evenly spaced, and even spacing understates p99."""
     t, out = start, []
     end = start + duration
     while t < end:
@@ -279,7 +279,7 @@ async def run_sweep(url, model, clips, concurrency_list, per_level, timeout):
 def load_clips(audio_dir: Path) -> list[tuple[str, bytes]]:
     files = sorted(p for p in audio_dir.glob("*.wav"))
     if not files:
-        raise SystemExit(f"no .wav files in {audio_dir} — build the golden set first (M2)")
+        raise SystemExit(f"no .wav files in {audio_dir}: build the golden set first (M2)")
     clips = [(p.name, p.read_bytes()) for p in files]
     total_mb = sum(len(b) for _, b in clips) / 1e6
     print(f"loaded {len(clips)} clips ({total_mb:.1f} MB) into memory")
@@ -337,7 +337,7 @@ def main() -> None:
         print(f"{s.phase:<10} {s.requests:>6} {s.errors:>5} {s.achieved_rps:>8} "
               f"{s.p50_ms:>9} {s.p95_ms:>9} {s.p99_ms:>9}")
         if not s.generator_healthy:
-            print(f"  !! phase '{s.phase}': generator lagged {s.max_queue_delay_ms:.0f}ms — "
+            print(f"  !! phase '{s.phase}': generator lagged {s.max_queue_delay_ms:.0f}ms: "
                   f"this run measures the load generator, not the server. Discard it.")
     print(f"\nwrote {args.out}")
 

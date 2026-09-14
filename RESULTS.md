@@ -31,7 +31,7 @@ places on **three** hosts, which is the strongest evidence the harness is determ
 
 **Throughput and latency are the same dial.** 13.07 req/s exists at concurrency 128 where p99
 is 17s. The 473 ms p99 exists at concurrency 1 where throughput is 2.79 req/s. No single
-operating point delivers both — a fleet reconciles them by holding each pod at low concurrency
+operating point delivers both: a fleet reconciles them by holding each pod at low concurrency
 and getting throughput from pod count, which makes them compatible *across the fleet*, never
 *per GPU*.
 
@@ -45,19 +45,19 @@ audio-hour.
 
 Three experiments, each designed to fail loudly if the hypothesis was wrong.
 
-### A40 — GPU-bound, confirmed
+### A40: GPU-bound, confirmed
 100% utilization at **300 W**, the card's full TDP. Four client processes delivered **0.90x**
-of one — no headroom anywhere. 13.07 req/s is the hardware.
+of one: no headroom anywhere. 13.07 req/s is the hardware.
 
-### H100 NVL — *not* GPU-bound, and slower
+### H100 NVL: *not* GPU-bound, and slower
 | | A40 | H100 NVL |
 |---|---|---|
 | peak throughput | 13.07 req/s | **5.93 req/s** |
 | GPU utilization | 100% @ 300 W | **23–30% @ 126 W** |
-| engine CPU | — | **2306% (23 cores)** |
+| engine CPU | N/A | **2306% (23 cores)** |
 
 A card with ~3x the compute delivered 0.45x the throughput. Six client processes gave 6.24 vs
-5.93 — not the client either.
+5.93, not the client either.
 
 ### The three rejected fixes
 
@@ -69,12 +69,12 @@ A card with ~3x the compute delivered 0.45x the throughput. Six client processes
 
 After the mel patch: **16 of 192 CPU cores busy, GPU at 50% utilization drawing only 130 W.**
 Neither resource is saturated. High utilization at low power means many small kernels with
-gaps between them — a serialized per-request critical path inside vLLM's encoder-decoder
+gaps between them: a serialized per-request critical path inside vLLM's encoder-decoder
 implementation, which is upstream work, not configuration.
 
 ---
 
-## 3. Speculative decoding — the corrected story
+## 3. Speculative decoding: the corrected story
 
 An earlier version of these notes claimed vLLM "asserts speculative decoding off for
 encoder-decoder models." **That was wrong**, and it came from citing an old GitHub issue
@@ -84,19 +84,19 @@ vLLM 0.26 **accepts** `--speculative-config` on Whisper. It builds
 `SpeculativeConfig(method='draft_model')`, adjusts the scheduler, and logs *"does not fully
 support multimodal models yet. Proceeding with tentative support."* Two bugs then block it:
 
-**Blocker 1 — fixed.** `AttributeError: 'WhisperConfig' object has no attribute
+**Blocker 1: fixed.** `AttributeError: 'WhisperConfig' object has no attribute
 'image_token_index'`. The proposer assumes every multimodal target is a *vision* model.
-Whisper is multimodal by audio — no image placeholder token, no separate language submodule.
+Whisper is multimodal by audio: no image placeholder token, no separate language submodule.
 [Patch included](patches/vllm-0.26-audio-multimodal-spec-decode.patch); it fixes any audio
 multimodal target and leaves every vision path untouched.
 
-**Blocker 2 — open.** `embedding(): argument 'indices' must be Tensor, not NoneType`.
+**Blocker 2: open.** `embedding(): argument 'indices' must be Tensor, not NoneType`.
 Reproduced under `--enforce-eager`, so it is runtime rather than a compile artifact: draft
 input IDs are never populated on the encoder-decoder path.
 
 Note it would not have moved throughput regardless. Speculative decoding reclaims idle compute
 during memory-bound decode; batching already fills that on the A40, and the H100 is limited by
-serialization. Its benefit is single-request latency at concurrency 1 — the regime already
+serialization. Its benefit is single-request latency at concurrency 1: the regime already
 passing at 473 ms.
 
 ---
@@ -108,12 +108,12 @@ Kept because each one would have produced a confidently wrong number.
 | bug | symptom | how it was caught |
 |---|---|---|
 | Golden set split utterances at 30s but dropped the tail from the reference | WER **0.1504** | error profile: 45 substitutions vs 277 deletions + 224 insertions. That ratio is misalignment, not a bad model. Fixed → 0.0160 |
-| Percentile used `round()` — banker's rounding | p50 of 10 samples returned the 6th value | unit test |
+| Percentile used `round()`: banker's rounding | p50 of 10 samples returned the 6th value | unit test |
 | Rate derived from *requested* count, not completed | a 6% gain reported as a 24% loss | recomputing both arms with one method |
 | Metric prefix guessed as `vllm_omni:` from HELP/TYPE lines | KEDA would query an empty series forever | counting **sample lines**: 334 `vllm:`, zero `vllm_omni:` |
 
 Had the first one been committed as the CI reference, the gate would have permitted a model to
-degrade to ~15% WER and still pass — precisely the silent failure it exists to catch.
+degrade to ~15% WER and still pass: precisely the silent failure it exists to catch.
 
 ---
 
@@ -121,18 +121,18 @@ degrade to ~15% WER and still pass — precisely the silent failure it exists to
 
 Each cost real time and none is in any tutorial.
 
-1. **RunPod containers cannot host Kubernetes** — no `CAP_SYS_ADMIN`, `ip_forward` unwritable,
+1. **RunPod containers cannot host Kubernetes**: no `CAP_SYS_ADMIN`, `ip_forward` unwritable,
    PID 1 is not systemd. Verified on two different templates. Bare Metal is sales-gated;
    Instant Clusters are explicitly not Kubernetes-compatible.
-2. **The CUDA 13 split** — as of Aug 2026 the default PyPI wheels for both torch *and* vLLM
+2. **The CUDA 13 split**: as of Aug 2026 the default PyPI wheels for both torch *and* vLLM
    require CUDA 13, while many rentable datacenter GPUs run 12.x drivers a tenant cannot
    upgrade. torch has a pinnable cu128 index; vLLM does not.
 3. **vllm-omni pins vLLM's minor version.** `pip install vllm vllm-omni` yields a broken pair
-   that fails with `ImportError: MistralToolCall` — an error in a *tool parser*, nothing to do
+   that fails with `ImportError: MistralToolCall`: an error in a *tool parser*, nothing to do
    with audio.
-4. **torchcodec/torch ABI mismatch** — vLLM eagerly imports torchcodec for video; its latest
+4. **torchcodec/torch ABI mismatch**: vLLM eagerly imports torchcodec for video; its latest
    release does not load against torch 2.11. Stub included.
-5. **PEP 668** — Ubuntu 24.04 refuses pip installs into system Python.
+5. **PEP 668**: Ubuntu 24.04 refuses pip installs into system Python.
 
 ---
 
@@ -146,6 +146,6 @@ reaction, canary rollouts with automated analysis and 22s auto-rollback, GitOps 
 across three environments, and Whisper running on a GPU-scheduled Kubernetes pod.
 
 **Not reached:** 118 req/s per GPU. The measured ceiling is 13.07 on an A40, and four separate
-experiments each failed to move it — a faster GPU, GPU-side mel extraction, multiple engines
+experiments each failed to move it: a faster GPU, GPU-side mel extraction, multiple engines
 per card, and a different inference engine. Also incomplete: speculative decoding, which is
 blocked by a vLLM bug that is diagnosed and half-patched but needs upstream work.

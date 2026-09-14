@@ -1,6 +1,6 @@
 # ADR-002: The CUDA 13 wall
 
-**Status:** DECIDED — Option A (rent a CUDA 13 capable host)
+**Status:** DECIDED: Option A (rent a CUDA 13 capable host)
 **Date:** 2026-08-15
 
 ## Context
@@ -13,13 +13,13 @@ RunPod A40 pod used for M2 runs driver **570.195.03**, which caps at CUDA 12.8.
 Result: `import vllm` fails with `ImportError: libcudart.so.13`. The compiled extension
 `vllm._C_stable_libtorch` links against the CUDA 13 runtime, which cannot load on this driver.
 
-The driver cannot be upgraded from inside a RunPod pod — it is the host's.
+The driver cannot be upgraded from inside a RunPod pod: it is the host's.
 
 ## What was tried, and why each failed
 
 | Attempt | Result |
 |---|---|
-| `pip install vllm==0.26.0` | installs, imports fail — wheel is CUDA 13 |
+| `pip install vllm==0.26.0` | installs, imports fail: wheel is CUDA 13 |
 | `uv pip install --torch-backend=cu128` | **only affects torch.** There is one vllm wheel on PyPI and it is CUDA 13 |
 | `--reinstall-package vllm` with cu128 backend | genuinely re-downloaded 289 MB, same CUDA 13 wheel |
 | `pip install nvidia-cuda-runtime-cu13` | no wheel for this platform; source build failed |
@@ -33,7 +33,7 @@ fine on this driver. The problem is specific to vLLM's own compiled extension.
 **A. Rent a pod with driver ≥ 580 (CUDA 13 capable).** RunPod exposes a CUDA-version filter
 when selecting a host. Everything then installs from PyPI with no workarounds, and the stack
 matches the design exactly (vllm 0.26 + vllm-omni 0.26). Keep the same network volume so the
-~3 GB of Whisper weights in `/workspace/hf` are not re-downloaded — requires the same region.
+~3 GB of Whisper weights in `/workspace/hf` are not re-downloaded: requires the same region.
 
 **B. Pin vLLM < 0.20.0** (the last CUDA 12 wheels) plus a matching vllm-omni (0.18 / 0.16).
 Works on the current pod with no new rental, but freezes the project on an old engine, and
@@ -58,5 +58,5 @@ built against a current engine. C works but produces a bespoke environment.
 This is worth keeping in the write-up. "Rent a GPU and serve a model" hides a real constraint:
 as of August 2026 the default wheels for both torch and vLLM require CUDA 13, while a large
 share of rentable datacenter GPUs still run 12.x drivers that a tenant cannot upgrade. Two
-separate dependency layers had to be pinned to CUDA 12.8 on this box, and one of them —
-vLLM's — has no pinnable PyPI wheel at all.
+separate dependency layers had to be pinned to CUDA 12.8 on this box, and one of them,
+vLLM's, has no pinnable PyPI wheel at all.

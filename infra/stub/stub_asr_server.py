@@ -2,7 +2,7 @@
 """A fake vLLM-Omni that costs nothing to run.
 
 The entire autoscaling half of this project (M5, M6, M8) is about how the system reacts to
-queue depth. None of that logic needs a GPU to be correct — it needs a server that exposes
+queue depth. None of that logic needs a GPU to be correct; it needs a server that exposes
 `vllm:num_requests_waiting` and gets slower when overloaded. This is that server.
 
 Purpose: develop and debug the KEDA ScaledObject, the Prometheus scrape config, the Argo
@@ -12,7 +12,7 @@ indentation error at $25/hour is a bad way to spend money.
 
 It deliberately models the ONE queueing behaviour that matters: a fixed number of batch
 slots, and requests that wait when all slots are full. That is what makes queue depth a
-leading indicator — it starts climbing the instant arrival rate exceeds service rate, well
+leading indicator: it starts climbing the instant arrival rate exceeds service rate, well
 before latency visibly degrades.
 
 Stdlib only, so it runs anywhere without a build step:
@@ -39,7 +39,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 class Engine:
-    """A fixed pool of batch slots with a waiting queue — the shape of a batching server."""
+    """A fixed pool of batch slots with a waiting queue: the shape of a batching server."""
 
     def __init__(self, slots: int, service_ms: float, jitter: float, ramp_s: float):
         self.slots = threading.Semaphore(slots)
@@ -75,7 +75,7 @@ class Engine:
             self.total_wait_ms += wait_ms
 
         try:
-            # service time varies per request because transcript length varies — this is
+            # service time varies per request because transcript length varies: this is
             # exactly why static batching is wrong for ASR, so the stub reproduces it.
             svc = self.service_ms * random.uniform(1 - self.jitter, 1 + self.jitter)
             time.sleep(svc / 1000.0)
@@ -136,11 +136,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/metrics":
             s = ENGINE.snapshot()
             # Names VERIFIED against a live vllm-omni 0.26.0 server under load
-            # (M3, 2026-08-15): the prefix is `vllm:`. Counted on the real engine —
+            # (M3, 2026-08-15): the prefix is `vllm:`. Counted on the real engine:
             # 334 sample lines starting `vllm:`, ZERO starting `vllm_omni:`.
             #
             # The trap: /metrics ALSO contains `# HELP vllm_omni:num_requests_waiting`
-            # and `# TYPE vllm_omni:num_requests_waiting gauge` — declarations with no
+            # and `# TYPE vllm_omni:num_requests_waiting gauge`: declarations with no
             # series behind them. So `curl /metrics | grep num_requests_waiting` finds
             # the vllm_omni name, it looks authoritative, and a KEDA query built on it
             # returns an empty result forever. The autoscaler then holds at
@@ -148,7 +148,7 @@ class Handler(BaseHTTPRequestHandler):
             #
             # Grep for the metric NAME and you get the wrong answer. Grep for a
             # metric LINE WITH A VALUE (`^vllm.*} [0-9]`) and you get the right one,
-            # and only while traffic is flowing — an idle engine publishes neither.
+            # and only while traffic is flowing: an idle engine publishes neither.
             body = f"""# HELP vllm:num_requests_waiting Number of requests waiting to be processed.
 # TYPE vllm:num_requests_waiting gauge
 vllm:num_requests_waiting{{model_name="stub"}} {s['waiting']}
@@ -221,7 +221,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--slots", type=int, default=8,
-                    help="concurrent batch slots — the pod's capacity")
+                    help="concurrent batch slots: the pod's capacity")
     ap.add_argument("--service-ms", type=float, default=400.0,
                     help="base per-request service time once a slot is acquired")
     ap.add_argument("--jitter", type=float, default=0.4,

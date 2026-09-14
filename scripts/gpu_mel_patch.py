@@ -4,7 +4,7 @@ THE HYPOTHESIS
 --------------
 On an H100 NVL, serving whisper-large-v3-turbo through vLLM peaked at 5.93 req/s with the
 GPU at 5% utilization and `VLLM::EngineCore` burning 23 CPU cores (see ADR-004). The engine
-is not waiting on the accelerator — it is computing log-mel spectrograms on the CPU, one
+is not waiting on the accelerator; it is computing log-mel spectrograms on the CPU, one
 30-second clip at a time, inside the process that is supposed to be scheduling GPU work.
 
 Whisper's front end is an STFT plus a mel filterbank. It is pure tensor math and belongs on
@@ -21,14 +21,14 @@ WHY A sitecustomize PATCH
 The server is launched as a CLI (`vllm-omni serve ...`), so there is no import site we
 control. Python imports `sitecustomize` automatically at interpreter startup if it is on the
 path, which makes it the one reliable hook into a process we do not own. Install this file as
-`sitecustomize.py` in site-packages and every Python process on the box — including the
-engine core workers vLLM forks — gets the patch.
+`sitecustomize.py` in site-packages and every Python process on the box, including the
+engine core workers vLLM forks, gets the patch.
 
 WHAT COULD GO WRONG, AND WHAT THIS DOES ABOUT IT
 ------------------------------------------------
 The feature extractor will now return tensors on the GPU. Anything downstream that expects
 numpy or CPU tensors will break loudly rather than silently, which is what we want. Set
-ASR_MEL_RETURN_CPU=1 to copy the result back to CPU after computing on the GPU — that still
+ASR_MEL_RETURN_CPU=1 to copy the result back to CPU after computing on the GPU: that still
 moves the expensive STFT off the CPU while keeping the output type identical to before, so
 it is the safer variant to try if the aggressive one errors.
 

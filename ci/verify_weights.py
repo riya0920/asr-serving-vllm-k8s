@@ -2,8 +2,8 @@
 """Verify model weights are exactly what we think they are, before anything loads them.
 
 Runs ahead of the WER gate because it answers a different question far more cheaply. The WER
-gate asks "does this model transcribe well?" — a 40-minute GPU job. This asks "is this the
-model we intended to ship?" — seconds, and it catches the cases where the answer is no for
+gate asks "does this model transcribe well?": a 40-minute GPU job. This asks "is this the
+model we intended to ship?": seconds, and it catches the cases where the answer is no for
 boring reasons: a truncated download, a floating HF revision that moved under us, a cached
 layer from a different model, a partially-written file from an interrupted pull.
 
@@ -48,7 +48,7 @@ def resolve_dir(model_id: str, revision: str, cache: Path) -> Path:
             return found[0]
         raise SystemExit(
             f"revision '{revision}' not in cache; found {[p.name for p in found]}. "
-            f"Pin the exact revision — 'main' moves, and a model that silently changed is "
+            f"Pin the exact revision: 'main' moves, and a model that silently changed is "
             f"the hardest kind of regression to diagnose."
         )
     raise SystemExit(f"model {model_id} not found under {cache}")
@@ -74,7 +74,7 @@ def main() -> int:
     if revision in ("main", "master", "latest"):
         # A floating revision means "whatever was published most recently", which makes the
         # build non-reproducible and the WER baseline meaningless.
-        print(f"FAIL: revision is '{revision}' — pin an immutable commit SHA", file=sys.stderr)
+        print(f"FAIL: revision is '{revision}': pin an immutable commit SHA", file=sys.stderr)
         return 2
 
     snapshot = resolve_dir(model_id, revision, args.cache)
@@ -92,7 +92,7 @@ def main() -> int:
                 print(f"  hashed {p.name}")
         args.manifest.write_text(json.dumps(
             {"model_id": model_id, "revision": revision, "files": files}, indent=2))
-        print(f"\nwrote {args.manifest} with {len(files)} files — review and commit it")
+        print(f"\nwrote {args.manifest} with {len(files)} files: review and commit it")
         return 0
 
     expected = spec.get("files", {})

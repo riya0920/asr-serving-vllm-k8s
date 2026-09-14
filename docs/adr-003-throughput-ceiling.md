@@ -1,6 +1,6 @@
 # ADR-003: The measured throughput ceiling, and what it means for the 118 req/s target
 
-**Status:** MEASURED — decision pending
+**Status:** MEASURED: decision pending
 **Date:** 2026-08-15
 **Evidence:** `results/diagA.json`, `results/b1..b4.json`, `results/m3_*.json`
 
@@ -18,7 +18,7 @@ All on a single NVIDIA A40 48GB (driver 580.159.03, CUDA 13.0), 50 clips of exac
 | reproduced on a second A40 host | 13.07 | 21.8x |
 
 Accuracy was gated, not assumed: turbo scored WER 0.0236 against the large-v3 baseline of
-0.0160 — a real regression of +0.0076, inside the +0.02 CI tolerance.
+0.0160: a real regression of +0.0076, inside the +0.02 CI tolerance.
 
 ## Is the GPU actually the limit?
 
@@ -35,7 +35,7 @@ Two tests:
 | A | 1 client process, concurrency 128 | 13.07 req/s |
 | B | 4 client processes, concurrency 32 each | 11.71 req/s |
 
-**Ratio 0.90x — four clients were slightly slower, not faster.** During test B the GPU
+**Ratio 0.90x: four clients were slightly slower, not faster.** During test B the GPU
 reported **100% utilization at 300 W**, which is the A40's full rated TDP.
 
 A card at rated power with pegged utilization is not waiting on a client. The bottleneck is
@@ -46,7 +46,7 @@ the GPU. ~13 req/s is this hardware's real ceiling for this model on this engine
 An earlier analysis in this project estimated Whisper-large's encoder at ~2.25 TFLOP per 30s
 clip, concluding that 13 req/s represented only ~30% of an A40 and that ~40 req/s was
 available. **That estimate was wrong.** The saturation measurement supersedes it. Either the
-FLOP model understates the true cost, or vLLM's Whisper kernels run far from peak efficiency —
+FLOP model understates the true cost, or vLLM's Whisper kernels run far from peak efficiency:
 distinguishing those would need profiling, but it does not change the ceiling.
 
 Recording this because the failure mode is instructive: a plausible arithmetic argument said
@@ -64,8 +64,8 @@ produce 118 and should not be expected to.
 
 ## Options that could close a 3x
 
-1. **FP8 quantization on Hopper** — plausibly 1.5–2x. Requires an H100; unavailable on Ampere.
-2. **A different engine** — TensorRT-LLM or CTranslate2 (faster-whisper) are materially faster
+1. **FP8 quantization on Hopper**: plausibly 1.5–2x. Requires an H100; unavailable on Ampere.
+2. **A different engine**: TensorRT-LLM or CTranslate2 (faster-whisper) are materially faster
    than vLLM for Whisper specifically. Plausibly 2–3x.
 3. Both stacked could plausibly approach ~100 req/s.
 

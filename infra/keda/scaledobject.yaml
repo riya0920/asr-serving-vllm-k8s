@@ -29,7 +29,7 @@ metadata:
   namespace: asr
 spec:
   scaleTargetRef:
-    name: whisper-asr           # the Deployment (or Argo Rollout — see infra/rollouts/)
+    name: whisper-asr           # the Deployment (or Argo Rollout: see infra/rollouts/)
   # Rollouts is a custom resource; uncomment when M8 switches the target over.
   # scaleTargetRef:
   #   apiVersion: argoproj.io/v1alpha1
@@ -90,7 +90,7 @@ spec:
     # ---------------------------------------------------------------- 2. queue depth
     # The surge trigger. Anything waiting means arrivals have already outrun service rate.
     # threshold=4 means: for every 4 requests queued fleet-wide, ask for one more pod.
-    # Set this LOW. It is not a latency budget, it is an early warning — by the time queue
+    # Set this LOW. It is not a latency budget, it is an early warning: by the time queue
     # depth is high enough to be comfortable about, p99 has already broken.
     - type: prometheus
       name: queue-depth

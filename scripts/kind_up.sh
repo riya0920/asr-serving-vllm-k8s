@@ -9,7 +9,7 @@
 #   bash scripts/kind_test_autoscale.sh     # drive it and watch replicas move
 #   kind delete cluster --name asr
 #
-# Requires: docker, kind, kubectl, helm. NOT runnable on the Windows laptop (no Docker) —
+# Requires: docker, kind, kubectl, helm. NOT runnable on the Windows laptop (no Docker):
 # run it on any cheap CPU VM or the RunPod pod.
 
 set -euo pipefail
@@ -62,7 +62,7 @@ echo "==> waiting for the stub to be scraped by Prometheus"
 kubectl -n asr rollout status deploy/whisper-asr --timeout=180s
 
 echo "==> applying the real ScaledObject (with the stub as its target)"
-# The ScaledObject is applied unmodified — same triggers, same thresholds, same behavior
+# The ScaledObject is applied unmodified: same triggers, same thresholds, same behavior
 # blocks that production uses. Only the workload behind it is fake.
 sed 's|prometheus-operated.monitoring.svc:9090|prometheus-operated.monitoring.svc:9090|' \
   "$ROOT/infra/keda/scaledobject.yaml" | kubectl apply -f -

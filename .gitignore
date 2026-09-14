@@ -1,4 +1,4 @@
-# Audio is large and regenerable from bench/build_golden.py — the manifest is the artifact,
+# Audio is large and regenerable from bench/build_golden.py: the manifest is the artifact,
 # not the wav files. CI rebuilds the set from the manifest's source + seed.
 golden/audio/
 *.wav

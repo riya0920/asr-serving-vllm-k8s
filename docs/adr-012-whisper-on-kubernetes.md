@@ -2,7 +2,7 @@
 
 **Status:** MEASURED
 **Date:** 2026-08-17
-**Hardware:** Lambda A10 24GB — a real VM with root, unlike every self-serve RunPod product
+**Hardware:** Lambda A10 24GB: a real VM with root, unlike every self-serve RunPod product
 **Evidence:** `results/m2_whisper_on_k8s_evidence.txt`
 
 ## What was proven
@@ -27,7 +27,7 @@ Output for `clip_000.wav`:
 which matches the LibriSpeech reference exactly, modulo casing and punctuation.
 
 This closes a real gap in the setup. Previously Whisper ran on rented GPUs
-with no Kubernetes, while KEDA autoscaled a stub on a cluster with no GPU — two machines, one
+with no Kubernetes, while KEDA autoscaled a stub on a cluster with no GPU: two machines, one
 sentence. Both halves now exist on one host, and the metric KEDA scales on is published by the
 real engine rather than a simulator.
 
@@ -37,18 +37,18 @@ real engine rather than a simulator.
    NVIDIA runtime into containerd if the toolkit is installed *before* k3s starts. Installing it
    afterwards needs a k3s restart **and** a `RuntimeClass` named `nvidia`, with the device-plugin
    daemonset patched to use it. Without the RuntimeClass the plugin runs under runc and cannot
-   see the GPU at all — the node simply reports no `nvidia.com/gpu`.
+   see the GPU at all: the node simply reports no `nvidia.com/gpu`.
 
 2. **`Invalid or unsupported audio file` (HTTP 400) from a perfectly healthy pod.** The
    `vllm/vllm-openai` image ships **without** audio dependencies:
    `ImportError('Please install vllm[audio] for audio support')`. The route is registered, the
-   health probe is green, the model is loaded — it just cannot decode audio. Installing librosa
+   health probe is green, the model is loaded; it just cannot decode audio. Installing librosa
    and soundfile at container start fixed it. This is a good example of a readiness probe that
    passes while the service is useless for its actual job.
 
 3. **Single-GPU rolling-update deadlock.** The default `RollingUpdate` strategy creates the new
    pod before terminating the old one. With one GPU on the node, the new pod sits `Pending`
-   forever waiting for a resource the old pod holds, and the deployment never converges — while
+   forever waiting for a resource the old pod holds, and the deployment never converges, while
    `kubectl get pods` still shows a Running pod, so it reads as healthy. `strategy: Recreate` is
    mandatory on single-GPU nodes.
 
@@ -56,8 +56,8 @@ real engine rather than a simulator.
 
 - **One GPU, so one replica.** KEDA scaling 2 → 16 was measured against the stub fleet
   ([ADR-008](adr-008-keda-autoscaling-measured.md)). Scaling *real* Whisper pods needs either
-  multiple GPUs or device-plugin time-slicing — the time-slicing ConfigMap was applied but the
+  multiple GPUs or device-plugin time-slicing: the time-slicing ConfigMap was applied but the
   node still advertised `nvidia.com/gpu: 1` rather than the requested 8, so that remains
   unproven.
-- The image is `vllm/vllm-openai`, not `vllm-omni` — the same engine, published as a standard
+- The image is `vllm/vllm-openai`, not `vllm-omni`: the same engine, published as a standard
   image rather than built locally.
