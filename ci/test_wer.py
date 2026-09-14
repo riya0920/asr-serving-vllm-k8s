@@ -2,7 +2,7 @@
 """Unit tests for the WER math.
 
 The WER gate is what stands between a silently-degraded model and production. If corpus_wer
-is wrong, that gate is decorative — it will pass everything, and nobody will find out until
+is wrong, that gate is decorative: it will pass everything, and nobody will find out until
 the transcripts are bad in front of users. So the guard gets its own guard.
 
 Stdlib only, no pytest: this runs in the cheapest CI job, before anything is installed.
@@ -43,7 +43,7 @@ check("counts deletion", wer("a b c", "a c")["deletions"], 1)
 check("counts insertion", wer("a b c", "a b x c")["insertions"], 1)
 check("everything wrong is 1.0", wer("a b c", "x y z")["wer"], 1.0)
 check("punctuation-only diff is zero", wer("hello world", "Hello, world.")["wer"], 0.0)
-# WER is unbounded above — a hallucinating model that emits 100 words for a 3-word
+# WER is unbounded above: a hallucinating model that emits 100 words for a 3-word
 # reference must score worse than one that emits nothing. Clamping to 1.0 would make those
 # two failures indistinguishable, and hallucination is the more dangerous one.
 check("hallucination exceeds 1.0", wer("a b c", " ".join(["x"] * 100))["wer"] > 1.0, True)

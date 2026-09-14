@@ -1,4 +1,4 @@
-"""Word error rate — shared by the baseline harness (M2) and the CI gate (M7).
+"""Word error rate: shared by the baseline harness (M2) and the CI gate (M7).
 
 Deliberately dependency-free and deliberately small. The CI gate is the thing standing
 between a bad model and production, so it should be something you can read in one sitting
@@ -6,11 +6,11 @@ and be sure of, not a wrapper around a package you have not audited.
 
 Normalization matters more than the edit distance here: Whisper emits punctuation and
 casing, LibriSpeech references do not. Comparing them raw reports ~40% WER on a perfect
-transcript. The normalizer below is the standard "English basic" treatment — lowercase,
+transcript. The normalizer below is the standard "English basic" treatment: lowercase,
 strip punctuation, expand a small set of contractions, normalize whitespace. It is NOT
 the full Whisper EnglishTextNormalizer (numbers, spelled-out currency, British/American
 spelling). That is fine because the gate compares WER against a baseline measured with
-THIS SAME normalizer — a consistent, slightly-pessimistic number is all a regression gate
+THIS SAME normalizer: a consistent, slightly-pessimistic number is all a regression gate
 needs. Do not compare these values to published WER benchmarks.
 """
 

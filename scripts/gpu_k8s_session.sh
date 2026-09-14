@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Whisper on Kubernetes, on a GPU node — closing the integration gap.
+# Whisper on Kubernetes, on a GPU node: closing the integration gap.
 #
 #   bash scripts/gpu_k8s_session.sh 2>&1 | tee gpu_k8s.log
 #
@@ -8,7 +8,7 @@
 # rented GPUs with no Kubernetes, and KEDA autoscaling a stub on a cluster with no GPU. This
 # puts both on one host so the whole path is exercised together.
 #
-# Requires a host where root means root AND an NVIDIA GPU is present — a real VM, not a
+# Requires a host where root means root AND an NVIDIA GPU is present: a real VM, not a
 # container. Every RunPod product available self-serve fails the first condition (ADR-001);
 # WSL2 satisfied it but has no NVIDIA GPU on this laptop.
 #
@@ -16,7 +16,7 @@
 # The NVIDIA device plugin can time-slice a single physical GPU into N allocatable
 # `nvidia.com/gpu` resources. KEDA then scales real Whisper pods 2 -> N on one card, so the
 # 8x spike test runs against actual model servers instead of a stub. Time-sliced replicas
-# contend for the same SMs, so per-pod throughput drops — this proves the autoscaling and
+# contend for the same SMs, so per-pod throughput drops: this proves the autoscaling and
 # scheduling path end to end, not that N pods give N times the throughput.
 
 set -u
@@ -26,7 +26,7 @@ MODEL=${MODEL:-openai/whisper-large-v3-turbo}
 
 echo "=== 0. preflight ==="
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader || {
-  echo "no NVIDIA GPU visible — wrong host"; exit 1; }
+  echo "no NVIDIA GPU visible: wrong host"; exit 1; }
 [ "$(id -u)" = "0" ] || { echo "must run as root"; exit 1; }
 
 echo ""

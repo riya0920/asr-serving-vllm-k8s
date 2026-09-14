@@ -11,14 +11,14 @@ Every measurement so far says vLLM is the constraint for Whisper, not the hardwa
 
 High utilization at low power with neither resource maxed is the signature of a serialized
 per-request path, not a throughput ceiling. CTranslate2 is a different implementation
-entirely — purpose-built for Whisper, its own batching, its own kernels — so it does not
+entirely, purpose-built for Whisper, its own batching, its own kernels, so it does not
 share that path. If it is several times faster on identical hardware with identical audio,
 then the throughput target was always reachable and vLLM was the wrong engine for this model.
 
 The comparison is only worth anything if NOTHING else changes. This server therefore speaks
 the same OpenAI-compatible endpoint, exposes the same Prometheus metric names, and is driven
 by the same bench/loadgen.py and graded by the same ci/wer_gate.py. Same clips, same
-harness, same gate — one variable.
+harness, same gate: one variable.
 
     python bench/fasterwhisper_server.py --port 8000 --model large-v3-turbo --batch-size 32
 
@@ -72,7 +72,7 @@ class BenchServer(ThreadingHTTPServer):
     """ThreadingHTTPServer with a listen backlog that survives a benchmark.
 
     socketserver defaults request_queue_size to 5. Drive 128 concurrent clients at it and the
-    kernel refuses connections once the accept queue overflows — which surfaces as client-side
+    kernel refuses connections once the accept queue overflows, which surfaces as client-side
     errors that look exactly like the engine failing, while the server log stays clean because
     those requests never reached it. Measured here as 126 errors in 324 requests before the
     fix, with zero server-side exceptions.
@@ -181,7 +181,7 @@ def main() -> None:
         mode = "batched"
     except ImportError:
         PIPELINE = None
-        mode = "sequential (BatchedInferencePipeline unavailable — comparison is unfair, say so)"
+        mode = "sequential (BatchedInferencePipeline unavailable: comparison is unfair, say so)"
     print(f"loaded {args.model} in {time.perf_counter()-t0:.1f}s [{mode}], {N_SLOTS} slots")
     print(f"faster-whisper server on :{args.port}")
 

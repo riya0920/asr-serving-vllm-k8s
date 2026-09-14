@@ -4,7 +4,7 @@
 # deliberate: it makes the image large (~4GB for large-v3 in fp16), but it removes a network
 # download from the pod cold-start path, and cold start is the thing standing between the
 # autoscaler and the SLO during a spike. It also makes the image content-addressed end to
-# end — the digest identifies the code AND the weights, so "what is running in prod" has one
+# end: the digest identifies the code AND the weights, so "what is running in prod" has one
 # answer instead of two.
 
 ARG VLLM_OMNI_VERSION=latest

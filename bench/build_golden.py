@@ -2,8 +2,8 @@
 """Build the golden set: ~50 clips of 30s speech with reference transcripts.
 
 This set does double duty and that is intentional:
-  - the benchmark corpus (M2, M3, M6) — so throughput numbers are always over the same audio
-  - the CI WER gate corpus (M7) — so a model regression is caught against known references
+  - the benchmark corpus (M2, M3, M6), so throughput numbers are always over the same audio
+  - the CI WER gate corpus (M7), so a model regression is caught against known references
 
 Source is LibriSpeech test-clean: real read speech, public references, redistributable.
 Individual utterances are 2-15s, so they are concatenated into 30s clips. Whisper's encoder
@@ -31,7 +31,7 @@ def main() -> None:
     ap.add_argument("--seconds", type=float, default=30.0)
     ap.add_argument("--out", type=Path, default=Path("golden"))
     ap.add_argument("--dataset", default="openslr/librispeech_asr",
-                    help="namespaced repo id — huggingface_hub rejects bare canonical names")
+                    help="namespaced repo id: huggingface_hub rejects bare canonical names")
     ap.add_argument("--config", default="clean")
     ap.add_argument("--split", default="test")
     args = ap.parse_args()
@@ -46,7 +46,7 @@ def main() -> None:
     audio_dir = args.out / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
 
-    # Streaming, so the 6GB test-clean archive is never fully downloaded — we consume ~25
+    # Streaming, so the 6GB test-clean archive is never fully downloaded: we consume ~25
     # minutes of audio and stop. Candidates are tried in order because the canonical
     # LibriSpeech repo has been renamed and restructured; pinning one path makes this script
     # break silently a year from now.
@@ -65,9 +65,9 @@ def main() -> None:
         except Exception as e:  # noqa: BLE001
             print(f"  no: {type(e).__name__}: {str(e)[:120]}")
     if ds is None:
-        sys.exit("could not load any LibriSpeech variant — check network and datasets version")
+        sys.exit("could not load any LibriSpeech variant: check network and datasets version")
 
-    SR = 16000  # Whisper's rate. Never hardcode this elsewhere — read it from the clip.
+    SR = 16000  # Whisper's rate. Never hardcode this elsewhere; read it from the clip.
     target = int(args.seconds * SR)
 
     manifest = []
@@ -84,7 +84,7 @@ def main() -> None:
         the audio at exactly 30s, which left a fragment of unreferenced speech at the end of
         every clip; Whisper faithfully transcribed it and every one of those words scored as
         an insertion. Measured baseline WER was 0.1504 with only 45 substitutions in 3631
-        words — the model was ~1.2% wrong and the reference construction supplied the other
+        words: the model was ~1.2% wrong and the reference construction supplied the other
         14 points. A quality gate calibrated against that number would have been worthless.
 
         Padding with silence rather than trimming keeps every request exactly one 30s encoder
@@ -134,7 +134,7 @@ def main() -> None:
         buf_len += len(wave)
 
     if made < args.clips:
-        print(f"warning: only produced {made}/{args.clips} clips — split exhausted")
+        print(f"warning: only produced {made}/{args.clips} clips: split exhausted")
     if skipped_long:
         print(f"skipped {skipped_long} utterances longer than {args.seconds}s")
 
@@ -151,7 +151,7 @@ def main() -> None:
     print(f"\n{made} clips, {total_min:.1f} min total "
           f"({speech_min:.1f} min speech, {100*speech_min/total_min:.0f}% speech density) "
           f"-> {args.out}")
-    print("commit golden/manifest.json; audio files are large — keep them out of git "
+    print("commit golden/manifest.json; audio files are large: keep them out of git "
           "(git-lfs or regenerate from this script in CI).")
 
 

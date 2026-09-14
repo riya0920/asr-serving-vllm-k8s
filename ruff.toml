@@ -16,10 +16,10 @@ select = [
     "E",      # pycodestyle errors
     "F",      # pyflakes
     "I",      # import sorting
-    "B",      # bugbear — B023 (closure over loop variable) caught a real latent bug here
+    "B",      # bugbear: B023 (closure over loop variable) caught a real latent bug here
     "SIM",    # simplify
     "RUF",    # ruff-specific
-    "BLE",    # blind except — enabled so the deliberate `# noqa: BLE001` suppressions in
+    "BLE",    # blind except: enabled so the deliberate `# noqa: BLE001` suppressions in
               # the benchmark scripts stay meaningful. Those catch-alls are intentional:
               # a failed request is data to record, not a reason to abort a run.
 ]

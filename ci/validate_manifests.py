@@ -74,13 +74,13 @@ def main() -> int:
             spec = d.get("spec", {})
             if kind == "Deployment" and "replicas" in spec:
                 err(f"{rel(p)}: Deployment/{name} sets spec.replicas while KEDA manages "
-                    f"replica count — every sync will fight the autoscaler")
+                    f"replica count: every sync will fight the autoscaler")
 
             pod_labels = (spec.get("template", {}).get("metadata", {}).get("labels")) or {}
             sel = (spec.get("selector", {}) or {}).get("matchLabels", {}) or {}
             if pod_labels and sel and not set(sel.items()) <= set(pod_labels.items()):
                 err(f"{rel(p)}: {kind}/{name} selector {sel} does not match pod labels "
-                    f"{pod_labels} — the workload will never own its pods")
+                    f"{pod_labels}: the workload will never own its pods")
 
     # ---------------------------------------------------------------- services and ports
     services: dict[str, dict] = {}
@@ -89,7 +89,7 @@ def main() -> int:
         services[name] = d
         ports = d.get("spec", {}).get("ports", [])
         if any("name" not in x for x in ports):
-            warn(f"{rel(p)}: Service/{name} has an unnamed port — ServiceMonitor and "
+            warn(f"{rel(p)}: Service/{name} has an unnamed port: ServiceMonitor and "
                  f"Rollout analysis both select ports by name")
 
     # ---------------------------------------------------------------- scrape wiring
@@ -103,7 +103,7 @@ def main() -> int:
         ]
         if not matched:
             err(f"{rel(p)}: ServiceMonitor/{name} selector {sel} matches no Service in this "
-                f"repo — nothing will be scraped and KEDA will scale on an empty query")
+                f"repo: nothing will be scraped and KEDA will scale on an empty query")
 
         for ep in d.get("spec", {}).get("endpoints", []):
             port = ep.get("port")
@@ -127,14 +127,14 @@ def main() -> int:
         if lo > hi:
             err(f"{rel(p)}: ScaledObject/{name} minReplicaCount {lo} > maxReplicaCount {hi}")
         if lo == 0:
-            warn(f"{rel(p)}: ScaledObject/{name} can scale to zero — the first request after "
+            warn(f"{rel(p)}: ScaledObject/{name} can scale to zero: the first request after "
                  f"an idle period pays the full GPU cold start and will time out")
 
         triggers = spec.get("triggers", [])
         if not triggers:
             err(f"{rel(p)}: ScaledObject/{name} has no triggers")
         if not any("waiting" in str(t.get("metadata", {}).get("query", "")) for t in triggers):
-            err(f"{rel(p)}: ScaledObject/{name} has no queue-depth trigger — scaling on "
+            err(f"{rel(p)}: ScaledObject/{name} has no queue-depth trigger: scaling on "
                 f"utilization alone cannot tell 'busy' from 'overloaded'")
 
         polling = spec.get("pollingInterval", 30)
@@ -143,27 +143,27 @@ def main() -> int:
                 iv = str(ep.get("interval", "30s")).rstrip("s")
                 if iv.isdigit() and int(iv) > polling:
                     err(f"{rel(p)}: scrape interval {iv}s is slower than KEDA "
-                        f"pollingInterval {polling}s — KEDA will decide on stale metrics")
+                        f"pollingInterval {polling}s: KEDA will decide on stale metrics")
 
         # PDB floor must not exceed the autoscaler floor, or drains deadlock.
         for pp, pdb in by_kind.get("PodDisruptionBudget", []):
             ma = pdb.get("spec", {}).get("minAvailable")
             if isinstance(ma, int) and ma > lo:
                 err(f"{rel(pp)}: PDB minAvailable {ma} exceeds ScaledObject minReplicaCount "
-                    f"{lo} — node drains will block indefinitely at minimum scale")
+                    f"{lo}: node drains will block indefinitely at minimum scale")
 
     # ---------------------------------------------------------------- probes
     for kind in ("Deployment", "Rollout"):
         for p, d in by_kind.get(kind, []):
             for c in d.get("spec", {}).get("template", {}).get("spec", {}).get("containers", []):
                 if not c.get("readinessProbe"):
-                    err(f"{rel(p)}: container '{c.get('name')}' has no readinessProbe — "
+                    err(f"{rel(p)}: container '{c.get('name')}' has no readinessProbe: "
                         f"scale-up will route traffic to pods still loading weights, so a "
                         f"spike shows up as a burst of errors")
                 sp, lp = c.get("startupProbe"), c.get("livenessProbe")
                 if lp and not sp and c.get("resources", {}).get("limits", {}).get("nvidia.com/gpu"):
                     err(f"{rel(p)}: GPU container '{c.get('name')}' has a livenessProbe but "
-                        f"no startupProbe — the probe will kill the pod during the multi-minute "
+                        f"no startupProbe: the probe will kill the pod during the multi-minute "
                         f"model load and crash-loop forever")
 
     # ---------------------------------------------------------------- report

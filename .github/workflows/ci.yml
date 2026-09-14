@@ -1,6 +1,6 @@
 name: ci
 
-# Three gates, in cost order — cheapest failure first, so a typo never burns GPU minutes.
+# Three gates, in cost order: cheapest failure first, so a typo never burns GPU minutes.
 #
 #   1. fast      - lint, unit tests for the WER math, YAML/manifest validation   (~1 min, free)
 #   2. quality   - WER gate over the golden set against a live server            (GPU runner)
@@ -49,7 +49,7 @@ jobs:
   quality:
     needs: fast
     # Gated on a repo variable. Without it, this job sits queued forever waiting for a
-    # runner label that does not exist, and every CI run hangs instead of concluding —
+    # runner label that does not exist, and every CI run hangs instead of concluding,
     # which is worse than not having the job, because "still running" reads as "fine".
     # Set the repository variable HAS_GPU_RUNNER=true once a GPU runner is registered.
     if: vars.HAS_GPU_RUNNER == 'true'
@@ -60,7 +60,7 @@ jobs:
 
       - name: Verify model artifact integrity
         # Checksum before load. A truncated or swapped weight file can still load and still
-        # produce output — catching it here is far cheaper than inferring it from WER later.
+        # produce output: catching it here is far cheaper than inferring it from WER later.
         run: python ci/verify_weights.py --manifest model-manifest.json
 
       - name: Build image
@@ -78,7 +78,7 @@ jobs:
       - name: Start ephemeral server
         run: |
           docker run -d --gpus all --name asr-ci -p 8000:8000 "${IMAGE}:${GITHUB_SHA}"
-          # Whisper-Large takes minutes to load. Poll rather than sleep a fixed amount —
+          # Whisper-Large takes minutes to load. Poll rather than sleep a fixed amount:
           # a fixed sleep is either wasteful or flaky, and eventually both.
           for i in $(seq 1 60); do
             curl -sf localhost:8000/health && break
@@ -98,7 +98,7 @@ jobs:
             --baseline results/m2_baseline_sequential.json \
             --tolerance 0.02
 
-      - name: Load test — assert no perf regression
+      - name: Load test, assert no perf regression
         run: |
           python bench/loadgen.py \
             --url http://localhost:8000 --audio-dir golden/audio \
@@ -122,7 +122,7 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker push "${IMAGE}:${GITHUB_SHA}"
-          # Immutable tag only. No :latest — a mutable tag makes "what is actually running in
+          # Immutable tag only. No :latest. A mutable tag makes "what is actually running in
           # prod" unanswerable, and makes rollback a guess.
 
       - name: Teardown
@@ -131,7 +131,7 @@ jobs:
 
   # Deployment is NOT in this pipeline, on purpose. CI decides whether an artifact is good;
   # Argo CD decides what is running. The handoff is a commit to the config repo bumping the
-  # image digest, which is a reviewable, revertible pull request — see infra/argocd/.
+  # image digest, which is a reviewable, revertible pull request: see infra/argocd/.
   promote:
     needs: quality
     if: github.ref == 'refs/heads/main'

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Multiple vLLM engines on ONE GPU — attacking the bottleneck ADR-005 actually found.
+# Multiple vLLM engines on ONE GPU: attacking the bottleneck ADR-005 actually found.
 #
 #   bash scripts/multi_instance_session.sh 2>&1 | tee multi.log
 #
@@ -12,7 +12,7 @@
 #
 # High utilization at low power means many small kernels with gaps between them. That is a
 # SERIALIZED PER-REQUEST PATH inside one engine process, not a resource ceiling. You cannot
-# tune your way out of it from the outside — but you can run more than one of it.
+# tune your way out of it from the outside, but you can run more than one of it.
 #
 # Whisper-turbo is 1.6 GB of weights against 94 GB of VRAM, and KV cache peaked at 5%. A
 # dozen instances fit comfortably. Each gets its own process, CUDA context and serialized
@@ -21,7 +21,7 @@
 # HONESTY NOTE
 # This measures aggregate throughput of ONE physical GPU. That is exactly what "requests per
 # second per GPU" means, and running multiple replicas per card is a normal production
-# pattern. What it is NOT is a single-engine number — say "N engines on one H100" whenever
+# pattern. What it is NOT is a single-engine number: say "N engines on one H100" whenever
 # quoting it, because a reader will otherwise assume one server process.
 
 set -u
@@ -56,7 +56,7 @@ for attempt in $(seq 1 120); do
   sleep 10
 done
 if [ "$ready" -ne "$N" ]; then
-  echo "  only ${ready}/${N} came up — check VRAM: N * MEM must stay under 0.92"
+  echo "  only ${ready}/${N} came up: check VRAM: N * MEM must stay under 0.92"
   grep -ihm2 'error\|out of memory' server_i*.log | head -5
   [ "$ready" -eq 0 ] && exit 1
   echo "  continuing with ${ready} instances; scale the result by what actually served"

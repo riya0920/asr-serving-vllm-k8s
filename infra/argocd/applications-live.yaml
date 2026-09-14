@@ -1,4 +1,4 @@
-# Three environments, one cluster, three namespaces — watching three paths in the SAME repo.
+# Three environments, one cluster, three namespaces: watching three paths in the SAME repo.
 #
 # Namespace-per-environment on a shared cluster is how a large share of real deployments run;
 # it gives you separate blast radii and separate promotion gates without paying for three
@@ -59,6 +59,6 @@ spec:
     namespace: asr-prod
   syncPolicy:
     # NO automated block. Prod syncs when a human decides. The canary and its analysis still
-    # run automatically once the sync starts — the human gate is on "should this go to prod",
+    # run automatically once the sync starts: the human gate is on "should this go to prod",
     # which is a judgement call, not on "is it healthy", which a machine answers faster.
     syncOptions: [CreateNamespace=true]

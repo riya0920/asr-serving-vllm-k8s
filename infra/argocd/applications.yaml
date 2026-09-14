@@ -1,7 +1,7 @@
 # GitOps delivery. The division of labour, stated precisely because these two get conflated:
 #
-#   Argo CD       decides WHAT should be running — reconciles each cluster against git
-#   Argo Rollouts decides HOW a new version replaces the old — canary steps and analysis
+#   Argo CD       decides WHAT should be running: reconciles each cluster against git
+#   Argo Rollouts decides HOW a new version replaces the old: canary steps and analysis
 #
 # Nobody runs `kubectl apply` against prod, including me. A deploy is a pull request against
 # the config repo, which makes every production change reviewed, diffable, and revertible by
@@ -34,7 +34,7 @@ spec:
       - CreateNamespace=true
   ignoreDifferences:
     # KEDA's HPA owns replica count. Without this, Argo sees the live replica count differ
-    # from git, calls it drift, and resets the fleet mid-spike — an autoscaler and a
+    # from git, calls it drift, and resets the fleet mid-spike: an autoscaler and a
     # reconciler fighting over the same field, with the outage happening at peak load.
     - group: apps
       kind: Deployment
@@ -91,7 +91,7 @@ spec:
     namespace: asr
   syncPolicy:
     # NO automated block. Prod syncs when a human merges the promotion PR. The canary and
-    # its analysis still run automatically once the sync starts — the human gate is on
+    # its analysis still run automatically once the sync starts: the human gate is on
     # "should this version go to prod at all", not on "is it healthy", which is a question
     # a machine answers better and faster than a person watching a dashboard.
     syncOptions:

@@ -6,7 +6,7 @@ regressed past tolerance against the recorded baseline.
 
 This exists because of a failure mode that no other check catches. A wrong mel-spectrogram
 config, a mismatched processor version, the wrong language token, a truncated weight
-download that still passes a shape check — none of these crash. The container starts, the
+download that still passes a shape check: none of these crash. The container starts, the
 health probe goes green, latency looks fine, requests return 200 with plausible-looking
 English in them. The only symptom is that the transcripts are worse, and without this gate
 the first person to notice is a user.
@@ -14,7 +14,7 @@ the first person to notice is a user.
     python ci/wer_gate.py --url http://localhost:8000 \\
         --baseline results/m2_baseline_sequential.json --tolerance 0.02
 
-Exit 0 = pass, 1 = regression, 2 = could not measure (which is also a failure — a gate that
+Exit 0 = pass, 1 = regression, 2 = could not measure (which is also a failure: a gate that
 silently passes when it cannot run is worse than no gate, because it is trusted).
 """
 
@@ -67,7 +67,7 @@ def main() -> int:
     args = ap.parse_args()
 
     if not args.baseline.exists():
-        print(f"FAIL: no baseline at {args.baseline}. Run M2 first — a gate with nothing to "
+        print(f"FAIL: no baseline at {args.baseline}. Run M2 first: a gate with nothing to "
               f"compare against cannot fail, and would give false confidence.", file=sys.stderr)
         return 2
 
@@ -127,10 +127,10 @@ def main() -> int:
         failed = True
 
     if per_clip[0][1] > args.worst_clip_max:
-        # Corpus WER can stay green while one clip collapses completely — e.g. language
+        # Corpus WER can stay green while one clip collapses completely: e.g. language
         # detection picking the wrong language on a single file. Averages hide cliffs.
         print(f"\nFAIL: {per_clip[0][0]} has WER {per_clip[0][1]:.4f} "
-              f"(max {args.worst_clip_max}) — a single clip failing this hard usually means "
+              f"(max {args.worst_clip_max}): a single clip failing this hard usually means "
               f"a per-request bug, not a model regression")
         failed = True
 
@@ -138,7 +138,7 @@ def main() -> int:
         return 1
 
     if delta < -args.tolerance:
-        print(f"\nPASS — and WER IMPROVED by {-delta:.4f}. Re-baseline (rerun M2 and commit "
+        print(f"\nPASS, and WER IMPROVED by {-delta:.4f}. Re-baseline (rerun M2 and commit "
               f"the new artifact) so future regressions are measured against this, not the "
               f"old worse number.")
     else:

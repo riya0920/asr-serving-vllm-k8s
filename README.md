@@ -17,7 +17,7 @@ Numbers below are measured on rented A40, H100 NVL and A10 GPUs. Raw artifacts i
 
 ## Demo
 
-[**Run it in Colab**](https://colab.research.google.com/github/riya0920/asr-serving-vllm-k8s/blob/main/notebooks/demo.ipynb) — free T4, about 5 minutes. Builds a golden set from LibriSpeech, transcribes a clip,
+[**Run it in Colab**](https://colab.research.google.com/github/riya0920/asr-serving-vllm-k8s/blob/main/notebooks/demo.ipynb): free T4, about 5 minutes. Builds a golden set from LibriSpeech, transcribes a clip,
 scores it with the same WER code the CI gate uses, and measures the batching speedup.
 
 Locally, start the server and transcribe a 30-second clip:
@@ -172,11 +172,11 @@ Measured: canary promotion 74s, automatic rollback 22s, commit to deployed about
 ## The stack as Terraform
 
 `infra/` is applied by Argo CD from YAML; `terraform/` declares the same objects as
-parameterized HCL for anyone who stands this up with Terraform instead — kept
+parameterized HCL for anyone who stands this up with Terraform instead, kept
 alongside the manifests, not replacing the GitOps path. It covers exactly what was
 applied by hand: the workload (Namespace, Deployment, Service, PodDisruptionBudget),
 the autoscaling policy (KEDA ScaledObject + TriggerAuthentication, all three
-triggers), and monitoring (the Prometheus ServiceMonitor) — with the knobs that used
+triggers), and monitoring (the Prometheus ServiceMonitor), with the knobs that used
 to be edited across four files now single reviewed variables (min/max replicas,
 queue and headroom thresholds, image, GPU count).
 
@@ -189,7 +189,7 @@ $ terraform -chdir=terraform plan       # Plan: 7 to add, 0 to change, 0 to dest
 ```
 
 It uses the `gavinbunney/kubectl` provider, whose `kubectl_manifest` computes the
-plan for new objects client-side — so `plan` works offline and without KEDA's or
+plan for new objects client-side, so `plan` works offline and without KEDA's or
 Prometheus's CRDs installed. (The `hashicorp/kubernetes` `kubernetes_manifest`
 resource cannot: it fetches the CRD schema from a live cluster at plan time.)
 `apply` points at a real cluster via kubeconfig.
@@ -197,7 +197,7 @@ resource cannot: it fetches the CRD schema from a live cluster at plan time.)
 **Terraform vs `kubectl apply` by hand:** one reviewed diff for a change instead of
 a hunt through the YAML, typed variables and validation, and a plan that states
 exactly what will change before it does. What it does **not** replace is Argo CD's
-continuous reconciliation and canary analysis — Terraform provisions, GitOps keeps
+continuous reconciliation and canary analysis: Terraform provisions, GitOps keeps
 it in sync. This is the "stand it up with Terraform" option, not a migration off Argo.
 
 ## Where the ceiling is
@@ -206,10 +206,10 @@ Four experiments. Each would have shown clearly if the hypothesis held.
 
 | # | hypothesis | result |
 |---|---|---|
-| 1 | A40 is GPU-bound | **confirmed** — 100% util at 300W, 4 clients gave 0.90x |
-| 2 | a faster GPU goes faster | **wrong** — H100 hit 5.93 req/s vs A40's 13.07 |
-| 3 | mel extraction on GPU unblocks it | **wrong** — CPU fell 23→16 cores, throughput +6% |
-| 4 | a different engine is faster | **wrong** — faster-whisper 1.89 vs vLLM 10.72 |
+| 1 | A40 is GPU-bound | **confirmed**: 100% util at 300W, 4 clients gave 0.90x |
+| 2 | a faster GPU goes faster | **wrong**: H100 hit 5.93 req/s vs A40's 13.07 |
+| 3 | mel extraction on GPU unblocks it | **wrong**: CPU fell 23→16 cores, throughput +6% |
+| 4 | a different engine is faster | **wrong**: faster-whisper 1.89 vs vLLM 10.72 |
 
 The H100 result is the interesting one. A card with 3x the compute delivered less than half the
 throughput, because Whisper's log-mel front end runs on CPU inside the engine process and
@@ -278,7 +278,7 @@ docs/      decision records, including the experiments that failed
 Things that cost hours and aren't in any tutorial.
 
 **Container GPU hosts can't run Kubernetes.** No `CAP_SYS_ADMIN`, read-only `ip_forward`, PID 1
-isn't systemd. WSL2 works — it has systemd and cgroup v2.
+isn't systemd. WSL2 works: it has systemd and cgroup v2.
 
 **Ubuntu 26.04's WSL image has no iptables.** k3s logs that as informational, starts anyway,
 then pod sandboxes churn forever and containers exit 255. Looks exactly like an app crash loop.

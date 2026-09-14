@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail the build when serving got slower.
 
-The WER gate catches "correct but broken". This catches "correct but slow" — a change that
+The WER gate catches "correct but broken". This catches "correct but slow": a change that
 transcribes perfectly and drops throughput 40% is also a failed deployment, and no other
 check in the pipeline would say a word about it.
 
@@ -61,7 +61,7 @@ def main() -> int:
     # Passing such a run would be worse than failing it: it looks like evidence.
     if not phase.get("generator_healthy", True):
         failed.append(
-            f"load generator lagged {phase.get('max_queue_delay_ms')}ms — run is invalid, "
+            f"load generator lagged {phase.get('max_queue_delay_ms')}ms: run is invalid, "
             f"not slow. Re-run from a machine that is not under test."
         )
 
@@ -89,7 +89,7 @@ def main() -> int:
     elif args.baseline:
         # Not fatal: the very first run has nothing to compare against. But say so loudly,
         # because "no baseline" and "no regression" print almost the same green checkmark.
-        print(f"\nWARNING: baseline {args.baseline} not found — "
+        print(f"\nWARNING: baseline {args.baseline} not found: "
               f"absolute SLO checked, regression NOT checked")
 
     print()

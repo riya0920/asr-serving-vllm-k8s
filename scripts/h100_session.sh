@@ -71,7 +71,7 @@ measure() {  # measure <label> <serverlog>
 }
 
 echo "==========================================================="
-echo "ARM A — baseline: mel on CPU (reproduce the 5.93 req/s wall)"
+echo "ARM A: baseline: mel on CPU (reproduce the 5.93 req/s wall)"
 echo "==========================================================="
 rm -f "$SP/sitecustomize.py"
 serve server_A.log || exit 1
@@ -83,7 +83,7 @@ python3 ci/wer_gate.py --url http://localhost:8000 --model "$M" \
 
 echo ""
 echo "==========================================================="
-echo "ARM B — mel on GPU"
+echo "ARM B: mel on GPU"
 echo "==========================================================="
 cp scripts/gpu_mel_patch.py "$SP/sitecustomize.py"
 echo "  verifying the patch actually loads:"
@@ -93,7 +93,7 @@ print('  patched:', getattr(W, '_asr_gpu_mel_patched', False))
 " 2>&1 | tail -2
 
 if ! serve server_B.log; then
-  echo "  arm B server failed with GPU mel — retrying with ASR_MEL_RETURN_CPU=1"
+  echo "  arm B server failed with GPU mel: retrying with ASR_MEL_RETURN_CPU=1"
   export ASR_MEL_RETURN_CPU=1
   serve server_B.log || { echo "  ARM B UNSERVABLE"; exit 1; }
 fi
@@ -105,7 +105,7 @@ python3 ci/wer_gate.py --url http://localhost:8000 --model "$M" \
 
 echo ""
 echo "==========================================================="
-echo "ARM C — arm B plus a concurrency sweep, only if B beat A"
+echo "ARM C: arm B plus a concurrency sweep, only if B beat A"
 echo "==========================================================="
 echo "  (run manually: bench/loadgen.py --profile sweep --concurrency-list 64,128,256,512)"
 echo ""

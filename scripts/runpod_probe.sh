@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# M1 substrate probe — can a real Kubernetes node exist on this box?
+# M1 substrate probe: can a real Kubernetes node exist on this box?
 #
 # Run this on the CHEAPEST GPU pod the provider will rent you. It costs a few cents
 # and decides the entire infrastructure plan (M5-M8).
@@ -27,7 +27,7 @@ printf '  distro : %s\n' "$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME
 printf '  cpus   : %s\n' "$(nproc 2>/dev/null || echo '?')"
 printf '  memory : %s\n' "$(free -h 2>/dev/null | awk '/^Mem:/{print $2}')"
 if [ -f /.dockerenv ] || grep -qE '(docker|containerd|kubepods)' /proc/1/cgroup 2>/dev/null; then
-  warn "running inside a container — this is the thing that usually blocks k3s"
+  warn "running inside a container: this is the thing that usually blocks k3s"
 else
   ok "not obviously containerized"
 fi
@@ -37,7 +37,7 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader | sed 's/^/  /'
   ok "nvidia-smi works"
 else
-  bad "no nvidia-smi — wrong image or no GPU attached"
+  bad "no nvidia-smi: wrong image or no GPU attached"
 fi
 
 hdr "Privileges (k3s needs these)"
@@ -46,12 +46,12 @@ if command -v capsh >/dev/null 2>&1; then
   printf '  %s\n' "$CAPS"
   case "$CAPS" in
     *cap_sys_admin*) ok "CAP_SYS_ADMIN present" ;;
-    *)               bad "CAP_SYS_ADMIN missing — kubelet cannot manage mounts/cgroups" ;;
+    *)               bad "CAP_SYS_ADMIN missing: kubelet cannot manage mounts/cgroups" ;;
   esac
 else
-  warn "capsh not installed (apt-get install -y libcap2-bin) — checking indirectly"
-  if mount -t tmpfs tmpfs /mnt 2>/dev/null; then umount /mnt; ok "can mount — privileged enough"
-  else bad "cannot mount tmpfs — not privileged"; fi
+  warn "capsh not installed (apt-get install -y libcap2-bin): checking indirectly"
+  if mount -t tmpfs tmpfs /mnt 2>/dev/null; then umount /mnt; ok "can mount: privileged enough"
+  else bad "cannot mount tmpfs, not privileged"; fi
 fi
 
 if [ "$(id -u)" = "0" ]; then ok "running as root"; else bad "not root"; fi
@@ -67,7 +67,7 @@ if [ -d /sys/fs/cgroup ]; then
     rmdir /sys/fs/cgroup/probe-test 2>/dev/null
     ok "cgroup hierarchy is writable"
   else
-    bad "cgroup hierarchy is read-only — kubelet will refuse to start"
+    bad "cgroup hierarchy is read-only: kubelet will refuse to start"
   fi
 else
   bad "/sys/fs/cgroup missing entirely"
@@ -78,7 +78,7 @@ for m in br_netfilter overlay; do
   if lsmod 2>/dev/null | grep -q "^$m" || modprobe "$m" 2>/dev/null; then
     ok "module $m available"
   else
-    warn "module $m not loadable — k3s may fall back or fail on pod networking"
+    warn "module $m not loadable: k3s may fall back or fail on pod networking"
   fi
 done
 [ -w /proc/sys/net/ipv4/ip_forward ] && ok "can set ip_forward" || bad "cannot set ip_forward"
@@ -126,14 +126,14 @@ fi
 hdr "VERDICT"
 printf '  pass=%s  fail=%s  warn=%s\n\n' "$PASS" "$FAIL" "$WARN"
 if [ "$FAIL" -eq 0 ]; then
-  printf '  PASS — build the Kubernetes half here (M5-M8).\n'
+  printf '  PASS: build the Kubernetes half here (M5-M8).\n'
   printf '  Next: rent the multi-GPU box, run this again to confirm, then M5.\n'
 else
-  printf '  FAIL — this substrate cannot host a real Kubernetes node.\n'
+  printf '  FAIL: this substrate cannot host a real Kubernetes node.\n'
   printf '  Keep model work (M2-M4) here; move cluster work to bare metal or a\n'
   printf '  root-access VM. Record the choice in docs/adr-001-substrate.md.\n'
 fi
 
 hdr "Cleanup"
 printf '  to remove k3s:  /usr/local/bin/k3s-uninstall.sh\n'
-printf '  STOP THE POD when done — it bills while idle.\n'
+printf '  STOP THE POD when done: it bills while idle.\n'

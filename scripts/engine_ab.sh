@@ -65,7 +65,7 @@ PY
 }
 
 echo "==================================================================="
-echo "ARM A — vLLM-Omni"
+echo "ARM A: vLLM-Omni"
 echo "==================================================================="
 pkill -9 -f "vllm-omni serve" 2>/dev/null; pkill -9 -f fasterwhisper_server 2>/dev/null; sleep 8
 nohup vllm-omni serve openai/whisper-large-v3-turbo --port 8000 \
@@ -82,7 +82,7 @@ pkill -9 -f "vllm-omni serve" 2>/dev/null; sleep 10
 
 echo ""
 echo "==================================================================="
-echo "ARM B — faster-whisper (CTranslate2)"
+echo "ARM B: faster-whisper (CTranslate2)"
 echo "==================================================================="
 pip install --break-system-packages -q faster-whisper 2>&1 | tail -1
 nohup python3 bench/fasterwhisper_server.py --port 8001 --model large-v3-turbo \
@@ -124,6 +124,6 @@ if a and b:
     print()
     print("  Whichever wins, the WER lines above decide whether it counts.")
 else:
-    print("  one arm produced no data — see the logs above")
+    print("  one arm produced no data: see the logs above")
 PY
 echo "=== ENGINE_AB_DONE ==="

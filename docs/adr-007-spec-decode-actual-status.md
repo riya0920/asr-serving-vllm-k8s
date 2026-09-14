@@ -1,6 +1,6 @@
-# ADR-007: Speculative decoding on Whisper — what actually blocks it
+# ADR-007: Speculative decoding on Whisper: what actually blocks it
 
-**Status:** INVESTIGATED — partially unblocked, one blocker remains
+**Status:** INVESTIGATED: partially unblocked, one blocker remains
 **Date:** 2026-08-16
 **Evidence:** `patches/vllm-0.26-audio-multimodal-spec-decode.patch`, pod logs `spec_test.log`,
 `spec3.log`, `spec4.log`
@@ -27,7 +27,7 @@ disproved it:
 So the feature is present and tentatively enabled for this model class. It fails later, for
 specific reasons.
 
-## Blocker 1 — fixed here
+## Blocker 1: fixed here
 
 ```
 AttributeError: 'WhisperConfig' object has no attribute 'image_token_index'
@@ -42,7 +42,7 @@ unconditionally, then calls `get_language_model()` on the target. Whisper is mul
 `patches/vllm-0.26-audio-multimodal-spec-decode.patch` makes both steps conditional and leaves
 every vision path untouched. It is small, safe, and upstreamable.
 
-## Blocker 2 — remains
+## Blocker 2: remains
 
 With blocker 1 patched, initialization proceeds further and then fails in the draft model:
 
@@ -52,7 +52,7 @@ TypeError: embedding(): argument 'indices' (position 2) must be Tensor, not None
 
 Reproduced with `--enforce-eager`, so it is a genuine runtime issue rather than a
 `torch.compile`/fake-tensor artifact. The draft model's embedding is invoked with `None`
-input IDs — vLLM's speculative input plumbing does not populate token IDs on the
+input IDs: vLLM's speculative input plumbing does not populate token IDs on the
 encoder-decoder path.
 
 Fixing that means understanding how the proposer builds draft inputs for a model whose
@@ -80,5 +80,5 @@ the A40 GPU-saturated at 13.07 req/s with continuous batching already filling th
 compute, and ADR-005/006 found the H100 limited by a serialized per-request path rather than
 decode throughput. Spec decoding targets neither constraint.
 
-Where it *would* help is single-request latency at concurrency 1 — which is the regime where
+Where it *would* help is single-request latency at concurrency 1, which is the regime where
 p99 already measures 473 ms.
