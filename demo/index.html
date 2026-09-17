@@ -193,7 +193,7 @@ footer a{color:var(--accent-ink)}
     <div class="eyebrow">Speech-to-text serving · live console</div>
     <h1>A speech-to-text service that stays fast and cheap under 8× traffic spikes.</h1>
     <p>Every number on this page is measured on real rented GPUs, from the repository's own
-       benchmark artifacts. Trigger the spike, sweep the load, and watch the traffic forecaster —
+       benchmark artifacts. Trigger the spike, sweep the load, and watch the traffic forecaster -
        then scroll down and talk into your mic to hear a model transcribe you.</p>
     <p class="note">This is a static demo of the serving stack's behaviour. It does not call a live GPU backend; the figures are replays of recorded runs in <span class="mono">results/</span>.</p>
   </div>
@@ -209,8 +209,8 @@ footer a{color:var(--accent-ink)}
   <!-- SPIKE SIM -->
   <section class="card">
     <h2><span class="tag">autoscaler</span> An 8× spike, scaling 2 → 16 pods</h2>
-    <p class="sub">Meeting traffic jumps ~8× on the hour. The fleet scales on <b>queue depth</b> —
-       requests waiting — not GPU utilisation, because utilisation pins at 100% whether 2 or 200 are
+    <p class="sub">Meeting traffic jumps ~8× on the hour. The fleet scales on <b>queue depth</b> -
+       requests waiting - not GPU utilisation, because utilisation pins at 100% whether 2 or 200 are
        queued. This replays the recorded KEDA reaction: scale-up begins one 2-second sample after the
        spike lands.</p>
 
@@ -243,7 +243,7 @@ footer a{color:var(--accent-ink)}
   <!-- OPTIMIZATION CHAIN -->
   <section class="card">
     <h2><span class="tag">throughput</span> Where the 21.8× came from</h2>
-    <p class="sub">Same GPU each step. No new hardware — just better serving.</p>
+    <p class="sub">Same GPU each step. No new hardware - just better serving.</p>
     <div class="chain" id="chain"></div>
   </section>
 
@@ -251,12 +251,12 @@ footer a{color:var(--accent-ink)}
   <section class="card">
     <h2><span class="tag">latency ⇄ throughput</span> One dial, two goals that fight</h2>
     <p class="sub">Pack more requests per GPU and total throughput rises while each caller waits longer.
-       No single point gives both — a fleet reconciles them by keeping each pod at low concurrency and adding pods.</p>
+       No single point gives both - a fleet reconciles them by keeping each pod at low concurrency and adding pods.</p>
     <div class="conc-grid">
       <div class="slider-wrap">
         <label>requests packed per GPU (concurrency): <b class="mono" id="concVal">1</b></label>
         <input type="range" id="conc" min="0" max="3" step="1" value="0">
-        <div class="slo ok" id="slo">p99 473 ms — under the 620 ms SLO ✓</div>
+        <div class="slo ok" id="slo">p99 473 ms - under the 620 ms SLO ✓</div>
       </div>
       <div class="conc-out">
         <div class="box"><b class="mono tnum" id="oThru">2.79</b><span>req / s</span></div>
@@ -284,7 +284,7 @@ footer a{color:var(--accent-ink)}
   <!-- MIC -->
   <section class="card">
     <h2><span class="tag">try it live</span> Talk into your mic</h2>
-    <p class="sub">This runs a Whisper model <b>entirely in your browser</b> — no server. Hold the button,
+    <p class="sub">This runs a Whisper model <b>entirely in your browser</b> - no server. Hold the button,
        speak, release, and it transcribes.</p>
     <div class="mic-wrap">
       <div class="mic-row">
@@ -300,7 +300,7 @@ footer a{color:var(--accent-ink)}
         <button class="btn" data-say="concord returned to its place amidst the tents">▶ sample B</button>
       </div>
       <p class="caveat">Runs <span class="mono">whisper-tiny.en</span> in your browser (≈40 MB, first use only),
-        not the <span class="mono">large-v3</span> stack this project benchmarks — so accuracy is lower than the
+        not the <span class="mono">large-v3</span> stack this project benchmarks - so accuracy is lower than the
         1.60% WER above. It's here so you can try the task; the serving engineering is the point.</p>
     </div>
   </section>
@@ -403,8 +403,8 @@ footer a{color:var(--accent-ink)}
   function upd(){
     const d=data[+s.value]; cv.textContent=d.c; oT.textContent=d.t;
     o5.textContent=fmt(d.p50); o9.textContent=fmt(d.p99);
-    if(d.ok){slo.className="slo ok";slo.textContent="p99 473 ms — under the 620 ms SLO ✓";}
-    else{slo.className="slo bad";slo.textContent=`p99 ${fmt(d.p99)} — over the 620 ms SLO ✗ (add pods instead)`;}
+    if(d.ok){slo.className="slo ok";slo.textContent="p99 473 ms - under the 620 ms SLO ✓";}
+    else{slo.className="slo bad";slo.textContent=`p99 ${fmt(d.p99)} - over the 620 ms SLO ✗ (add pods instead)`;}
   }
   s.oninput=upd; upd();
 })();
@@ -488,7 +488,7 @@ footer a{color:var(--accent-ink)}
     mediaRec.onstop=()=>{ media.getTracks().forEach(t=>t.stop());
       transcribe(new Blob(chunks,{type:mediaRec.mimeType||"audio/webm"})); };
     mediaRec.start(); recording=true; recBtn.classList.add("recording");
-    setStatus('<span style="color:var(--crit)">● recording</span> — release to transcribe');
+    setStatus('<span style="color:var(--crit)">● recording</span> - release to transcribe');
   }
   function stopRec(){ if(!recording)return; recording=false; recBtn.classList.remove("recording");
     setStatus("processing…"); try{mediaRec.stop();}catch(e){} }
@@ -500,7 +500,7 @@ footer a{color:var(--accent-ink)}
 
   // sample buttons: speak via TTS, capture with a synthetic note (demo fallback if no mic)
   document.querySelectorAll(".samples [data-say]").forEach(b=>{
-    b.onclick=()=>{ setText('"'+b.dataset.say+'"  — (sample text; use the mic to transcribe your own speech)',""); };
+    b.onclick=()=>{ setText('"'+b.dataset.say+'"  - (sample text; use the mic to transcribe your own speech)',""); };
   });
 
   loadModel();
