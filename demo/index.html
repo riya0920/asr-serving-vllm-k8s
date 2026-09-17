@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Whisper Serving Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#eef1f5; --surface:#ffffff; --surface-2:#f6f8fb; --ink:#0f1b2d;
+  --muted:#5b6b80; --faint:#8496ab; --border:#dbe2ec; --border-strong:#c4cedb;
+  --accent:#0e7490; --accent-soft:#0e749018; --accent-ink:#0b5566;
+  --good:#127a3e; --good-soft:#127a3e18; --warn:#b45309; --warn-soft:#b4530918;
+  --crit:#c02626; --crit-soft:#c0262618;
+  --grid:#e6ebf2;
+  --shadow:0 1px 2px rgba(15,27,45,.06),0 8px 24px rgba(15,27,45,.06);
+}
+:root:not([data-theme="light"]) { }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0a111c; --surface:#111c2b; --surface-2:#0e1826; --ink:#e6eef8;
+    --muted:#93a4ba; --faint:#61738c; --border:#203047; --border-strong:#2c4059;
+    --accent:#22d3ee; --accent-soft:#22d3ee18; --accent-ink:#8fe9f7;
+    --good:#34d17f; --good-soft:#34d17f18; --warn:#fbbf24; --warn-soft:#fbbf2418;
+    --crit:#f87171; --crit-soft:#f8717118;
+    --grid:#1a2740;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0a111c; --surface:#111c2b; --surface-2:#0e1826; --ink:#e6eef8;
+  --muted:#93a4ba; --faint:#61738c; --border:#203047; --border-strong:#2c4059;
+  --accent:#22d3ee; --accent-soft:#22d3ee18; --accent-ink:#8fe9f7;
+  --good:#34d17f; --good-soft:#34d17f18; --warn:#fbbf24; --warn-soft:#fbbf2418;
+  --crit:#f87171; --crit-soft:#f8717118;
+  --grid:#1a2740;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1060px; margin:0 auto; padding-inline:16px; padding-block:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+.tnum{font-variant-numeric:tabular-nums}
+h1,h2,h3{text-wrap:balance; margin:0}
+a{color:var(--accent-ink); text-decoration:none}
+a:hover{text-decoration:underline}
+[hidden]{display:none!important}
+
+/* header */
+header{position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  background:color-mix(in srgb,var(--ground) 88%,transparent); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border)}
+.bar{display:flex; align-items:center; gap:14px; padding-block:12px}
+.dot{width:9px; height:9px; border-radius:50%; background:var(--good); box-shadow:0 0 0 4px var(--good-soft); flex:none}
+.brand{font-weight:600; letter-spacing:-.01em}
+.brand small{display:block; font-weight:400; color:var(--muted); font-size:12px; letter-spacing:0}
+.bar .spacer{flex:1}
+.pill{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted);
+  border:1px solid var(--border); border-radius:999px; padding:4px 10px; background:var(--surface)}
+.btn{font:inherit; cursor:pointer; border:1px solid var(--border-strong); background:var(--surface);
+  color:var(--ink); border-radius:8px; padding:7px 12px; font-size:13px; font-weight:500; display:inline-flex; align-items:center; gap:7px}
+.btn:hover{border-color:var(--accent); color:var(--accent-ink)}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+:root[data-theme="dark"] .btn.primary,
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.primary{color:#04222b}}
+.btn.primary:hover{filter:brightness(1.05); color:#fff}
+.btn[disabled]{opacity:.5; cursor:not-allowed}
+
+/* hero */
+.hero{padding-block:30px 10px}
+.eyebrow{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--accent-ink)}
+.hero h1{font-size:clamp(26px,4.5vw,40px); font-weight:700; letter-spacing:-.02em; margin-top:8px}
+.hero p{color:var(--muted); max-width:64ch; margin-top:12px; font-size:16px}
+.note{font-size:12.5px; color:var(--faint); margin-top:10px}
+
+/* stat tiles */
+.tiles{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-block:22px}
+.tile{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:var(--shadow)}
+.tile .k{font-family:"IBM Plex Mono",monospace; font-size:clamp(22px,3vw,30px); font-weight:600; letter-spacing:-.02em}
+.tile .l{font-size:12.5px; color:var(--muted); margin-top:4px}
+.tile .s{font-size:11.5px; color:var(--faint); margin-top:6px}
+.tile.accent .k{color:var(--accent-ink)}
+.tile.good .k{color:var(--good)}
+
+/* section */
+section.card{background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:20px; margin-block:16px; box-shadow:var(--shadow)}
+.card h2{font-size:19px; font-weight:600; letter-spacing:-.01em; display:flex; align-items:center; gap:10px}
+.card .sub{color:var(--muted); font-size:13.5px; margin-top:6px; max-width:70ch}
+.tag{font-family:"IBM Plex Mono",monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--accent-ink); background:var(--accent-soft); border:1px solid var(--accent-soft); border-radius:6px; padding:2px 7px}
+
+/* spike sim */
+.sim-top{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:16px}
+.readout{display:flex; gap:20px; flex-wrap:wrap; margin-left:auto}
+.readout div{font-size:12px; color:var(--muted)}
+.readout b{font-family:"IBM Plex Mono",monospace; font-size:20px; color:var(--ink); display:block; font-weight:600}
+.clock{color:var(--accent-ink)!important}
+.pods{display:grid; grid-template-columns:repeat(16,1fr); gap:6px; margin-top:18px}
+.pod{aspect-ratio:1/1.15; border-radius:6px; background:var(--surface-2); border:1px solid var(--border);
+  display:flex; align-items:flex-end; justify-content:center; padding-bottom:3px; font-size:9px; color:var(--faint);
+  transition:background .35s,border-color .35s,transform .35s}
+.pod.ready{background:var(--accent-soft); border-color:var(--accent)}
+.pod.ready::after{content:"GPU"; font-family:"IBM Plex Mono",monospace; color:var(--accent-ink)}
+.pod.warming{background:var(--warn-soft); border-color:var(--warn)}
+.pod.warming::after{content:"…"; color:var(--warn); font-weight:700}
+.qwrap{margin-top:16px}
+.qlabel{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:6px}
+.qbar{height:14px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; overflow:hidden}
+.qfill{height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--warn)); transition:width .3s}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:14px}
+.swatch{display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:5px; border:1px solid var(--border)}
+
+/* bars (optimization chain) */
+.chain{display:flex; flex-direction:column; gap:12px; margin-top:16px}
+.chain-row{display:grid; grid-template-columns:190px 1fr 88px; gap:12px; align-items:center}
+.chain-row .name{font-size:13px}
+.chain-row .name small{display:block; color:var(--faint); font-size:11px}
+.track{background:var(--surface-2); border-radius:7px; height:26px; overflow:hidden; border:1px solid var(--border)}
+.fill{height:100%; background:var(--accent); border-radius:7px 0 0 7px; width:0; transition:width 1s cubic-bezier(.2,.7,.2,1)}
+.fill.base{background:var(--faint)}
+.val{font-family:"IBM Plex Mono",monospace; font-size:14px; text-align:right; font-weight:600}
+.val small{color:var(--faint); font-weight:400}
+@media (max-width:560px){.chain-row{grid-template-columns:120px 1fr 64px}}
+
+/* concurrency */
+.conc-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; align-items:center}
+.slider-wrap label{font-size:12px; color:var(--muted); display:block; margin-bottom:8px}
+input[type=range]{width:100%; accent-color:var(--accent)}
+.conc-out{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+.conc-out .box{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:12px; text-align:center}
+.conc-out .box b{font-family:"IBM Plex Mono",monospace; font-size:22px; display:block}
+.conc-out .box span{font-size:11px; color:var(--muted)}
+.slo{font-size:12px; margin-top:12px; padding:8px 12px; border-radius:8px; text-align:center; font-weight:500}
+.slo.ok{background:var(--good-soft); color:var(--good)}
+.slo.bad{background:var(--crit-soft); color:var(--crit)}
+@media (max-width:640px){.conc-grid{grid-template-columns:1fr}}
+
+/* forecast */
+.chart{margin-top:16px; width:100%; overflow-x:auto}
+svg{display:block; width:100%; height:auto}
+.fc-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px}
+.fc-stats .b{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:12px}
+.fc-stats .b b{font-family:"IBM Plex Mono",monospace; font-size:19px; color:var(--accent-ink); display:block}
+.fc-stats .b span{font-size:11.5px; color:var(--muted)}
+@media (max-width:640px){.fc-stats{grid-template-columns:1fr}}
+
+/* mic */
+.mic-wrap{margin-top:16px; display:flex; flex-direction:column; gap:14px}
+.mic-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.rec{width:56px; height:56px; border-radius:50%; border:none; cursor:pointer; background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center; flex:none; box-shadow:var(--shadow)}
+.rec svg{width:24px; height:24px}
+.rec.recording{background:var(--crit); animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--crit-soft)}50%{box-shadow:0 0 0 12px transparent}}
+.rec[disabled]{opacity:.5; cursor:not-allowed}
+.mic-status{font-size:13px; color:var(--muted)}
+.mic-status .mono{color:var(--ink)}
+.transcript{min-height:64px; background:var(--surface-2); border:1px dashed var(--border-strong); border-radius:10px;
+  padding:14px 16px; font-size:15px; line-height:1.6}
+.transcript.empty{color:var(--faint); font-style:italic}
+.samples{display:flex; gap:10px; flex-wrap:wrap}
+.samples button{font:inherit; font-size:12.5px}
+.caveat{font-size:12px; color:var(--faint); border-left:2px solid var(--warn); padding-left:12px}
+
+footer{color:var(--muted); font-size:12.5px; padding-block:26px 40px; border-top:1px solid var(--border); margin-top:8px}
+footer a{color:var(--accent-ink)}
+.reduced * {animation:none!important; transition:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <span class="dot" title="conceptual status"></span>
+    <div class="brand">whisper-serving <small>Whisper-Large · vLLM · Kubernetes · KEDA</small></div>
+    <span class="spacer"></span>
+    <span class="pill" id="hostpill">measured on A40 / H100 / A10</span>
+    <button class="btn" id="theme">◐ Theme</button>
+    <a class="btn" id="repo" href="https://github.com/riya0920/asr-serving-vllm-k8s" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="eyebrow">Speech-to-text serving · live console</div>
+    <h1>A speech-to-text service that stays fast and cheap under 8× traffic spikes.</h1>
+    <p>Every number on this page is measured on real rented GPUs, from the repository's own
+       benchmark artifacts. Trigger the spike, sweep the load, and watch the traffic forecaster —
+       then scroll down and talk into your mic to hear a model transcribe you.</p>
+    <p class="note">This is a static demo of the serving stack's behaviour. It does not call a live GPU backend; the figures are replays of recorded runs in <span class="mono">results/</span>.</p>
+  </div>
+
+  <!-- headline tiles -->
+  <div class="tiles">
+    <div class="tile accent"><div class="k tnum">21.8×</div><div class="l">throughput vs naive baseline</div><div class="s">0.60 → 13.07 req/s, one GPU</div></div>
+    <div class="tile good"><div class="k tnum">−92%</div><div class="l">cost per audio hour</div><div class="s">after warm headroom + idle floor</div></div>
+    <div class="tile"><div class="k tnum">473<small style="font-size:14px"> ms</small></div><div class="l">p99 latency at low concurrency</div><div class="s">under the 620 ms SLO</div></div>
+    <div class="tile"><div class="k tnum">1.60<small style="font-size:14px"> %</small></div><div class="l">word error rate (large-v3)</div><div class="s">reproduced to 4 dp on 3 hosts</div></div>
+  </div>
+
+  <!-- SPIKE SIM -->
+  <section class="card">
+    <h2><span class="tag">autoscaler</span> An 8× spike, scaling 2 → 16 pods</h2>
+    <p class="sub">Meeting traffic jumps ~8× on the hour. The fleet scales on <b>queue depth</b> —
+       requests waiting — not GPU utilisation, because utilisation pins at 100% whether 2 or 200 are
+       queued. This replays the recorded KEDA reaction: scale-up begins one 2-second sample after the
+       spike lands.</p>
+
+    <div class="sim-top">
+      <button class="btn primary" id="spikeBtn">▶ Trigger 8× spike</button>
+      <button class="btn" id="resetBtn">↺ Reset</button>
+      <div class="readout">
+        <div>elapsed<b class="clock mono tnum" id="clk">0s</b></div>
+        <div>queue depth<b class="mono tnum" id="qd">0</b></div>
+        <div>desired<b class="mono tnum" id="des">2</b></div>
+        <div>ready<b class="mono tnum" id="rdy">2</b></div>
+      </div>
+    </div>
+
+    <div class="qwrap">
+      <div class="qlabel"><span>requests waiting (queue depth)</span><span class="mono" id="qmax">peak ≈ 80</span></div>
+      <div class="qbar"><div class="qfill" id="qfill"></div></div>
+    </div>
+
+    <div class="pods" id="pods"></div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--accent-soft);border-color:var(--accent)"></span>ready GPU pod</span>
+      <span><span class="swatch" style="background:var(--warn-soft);border-color:var(--warn)"></span>warming (cold start)</span>
+      <span><span class="swatch" style="background:var(--surface-2)"></span>not provisioned</span>
+      <span class="mono" id="simnote" style="margin-left:auto">min 2 · max 16 · poll 5s · scale-up window 0s</span>
+    </div>
+  </section>
+
+  <!-- OPTIMIZATION CHAIN -->
+  <section class="card">
+    <h2><span class="tag">throughput</span> Where the 21.8× came from</h2>
+    <p class="sub">Same GPU each step. No new hardware — just better serving.</p>
+    <div class="chain" id="chain"></div>
+  </section>
+
+  <!-- CONCURRENCY -->
+  <section class="card">
+    <h2><span class="tag">latency ⇄ throughput</span> One dial, two goals that fight</h2>
+    <p class="sub">Pack more requests per GPU and total throughput rises while each caller waits longer.
+       No single point gives both — a fleet reconciles them by keeping each pod at low concurrency and adding pods.</p>
+    <div class="conc-grid">
+      <div class="slider-wrap">
+        <label>requests packed per GPU (concurrency): <b class="mono" id="concVal">1</b></label>
+        <input type="range" id="conc" min="0" max="3" step="1" value="0">
+        <div class="slo ok" id="slo">p99 473 ms — under the 620 ms SLO ✓</div>
+      </div>
+      <div class="conc-out">
+        <div class="box"><b class="mono tnum" id="oThru">2.79</b><span>req / s</span></div>
+        <div class="box"><b class="mono tnum" id="oP50">362</b><span>p50 (ms)</span></div>
+        <div class="box"><b class="mono tnum" id="oP99">473</b><span>p99 (ms)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FORECAST -->
+  <section class="card">
+    <h2><span class="tag">predictive scaling</span> A traffic forecaster, 10 minutes ahead</h2>
+    <p class="sub">A LightGBM model trained on Microsoft's real Azure Functions 2019 trace
+       (13.5 billion requests, ~47k functions, 14 days). Shown on a held-out day it never saw during
+       training. Predicting ahead lets the fleet warm pods <i>before</i> load arrives, instead of reacting after.</p>
+    <div class="chart" id="fcChart"></div>
+    <div class="fc-stats">
+      <div class="b"><b class="tnum">3.3%</b><span>forecast error (MAPE), 10 min ahead</span></div>
+      <div class="b"><b class="tnum">33%</b><span>lower error than the best naive baseline</span></div>
+      <div class="b"><b class="tnum">23%</b><span>fewer requests left short of capacity vs reactive, at equal cost</span></div>
+    </div>
+    <p class="note">Honest note: on smooth aggregate traffic the gain is modest; predictive scaling pays off most on sharp, synchronised spikes. The reactive queue-depth autoscaler above still catches the surprises a forecast can't.</p>
+  </section>
+
+  <!-- MIC -->
+  <section class="card">
+    <h2><span class="tag">try it live</span> Talk into your mic</h2>
+    <p class="sub">This runs a Whisper model <b>entirely in your browser</b> — no server. Hold the button,
+       speak, release, and it transcribes.</p>
+    <div class="mic-wrap">
+      <div class="mic-row">
+        <button class="rec" id="rec" aria-label="record" disabled>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V7a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/><path d="M19 12a7 7 0 0 1-14 0H3a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12h-2z"/></svg>
+        </button>
+        <div class="mic-status" id="micStatus">Loading in-browser model… <span class="mono" id="micPct"></span></div>
+      </div>
+      <div class="transcript empty" id="transcript">Your transcription will appear here.</div>
+      <div class="samples">
+        <span style="font-size:12.5px;color:var(--muted);align-self:center">No mic? Try a clip:</span>
+        <button class="btn" data-say="the quick brown fox jumps over the lazy dog">▶ sample A</button>
+        <button class="btn" data-say="concord returned to its place amidst the tents">▶ sample B</button>
+      </div>
+      <p class="caveat">Runs <span class="mono">whisper-tiny.en</span> in your browser (≈40 MB, first use only),
+        not the <span class="mono">large-v3</span> stack this project benchmarks — so accuracy is lower than the
+        1.60% WER above. It's here so you can try the task; the serving engineering is the point.</p>
+    </div>
+  </section>
+
+  <footer class="wrap" style="padding-inline:0">
+    Built from measured runs in
+    <a href="https://github.com/riya0920/asr-serving-vllm-k8s/tree/main/results" target="_blank" rel="noopener">results/</a> ·
+    decision records in <a href="https://github.com/riya0920/asr-serving-vllm-k8s/tree/main/docs" target="_blank" rel="noopener">docs/</a> ·
+    full write-up in the <a href="https://github.com/riya0920/asr-serving-vllm-k8s#readme" target="_blank" rel="noopener">README</a>.
+    <br>Latency, throughput, WER and the KEDA spike timeline are recorded numbers; the forecaster is trained on the public Azure Functions 2019 dataset.
+  </footer>
+</main>
+
+<script>
+/* ---------- theme ---------- */
+(function(){
+  const root=document.documentElement, key="ws-theme";
+  try{const s=localStorage.getItem(key); if(s) root.setAttribute("data-theme",s);}catch(e){}
+  document.getElementById("theme").onclick=()=>{
+    const cur=root.getAttribute("data-theme");
+    const isDark = cur ? cur==="dark" : matchMedia("(prefers-color-scheme:dark)").matches;
+    const next=isDark?"light":"dark"; root.setAttribute("data-theme",next);
+    try{localStorage.setItem(key,next);}catch(e){}
+  };
+  if(matchMedia("(prefers-reduced-motion:reduce)").matches) document.body.classList.add("reduced");
+})();
+
+/* ---------- spike simulator (real KEDA timeline) ---------- */
+(function(){
+  const timeline=[ /* [t sec, desired, ready, queue] */
+    [0,2,2,0],[44,2,2,0],[46,5,2,28],[50,5,3,55],[56,10,5,78],[62,13,8,60],
+    [66,16,10,40],[70,16,14,14],[72,16,16,0]];
+  const podsEl=document.getElementById("pods");
+  const pod=[];
+  for(let i=0;i<16;i++){const d=document.createElement("div");d.className="pod";podsEl.appendChild(d);pod.push(d);}
+  const clk=document.getElementById("clk"),qd=document.getElementById("qd"),des=document.getElementById("des"),
+        rdy=document.getElementById("rdy"),qfill=document.getElementById("qfill");
+  let timer=null;
+  function paint(desired,ready,queue,t){
+    clk.textContent=t+"s"; qd.textContent=queue; des.textContent=desired; rdy.textContent=ready;
+    qfill.style.width=Math.min(100,queue/80*100)+"%";
+    for(let i=0;i<16;i++){
+      pod[i].className="pod"+(i<ready?" ready":(i<desired?" warming":""));
+    }
+  }
+  function reset(){ if(timer)clearInterval(timer); timer=null; paint(2,2,0,0);
+    document.getElementById("spikeBtn").disabled=false; }
+  function run(){
+    document.getElementById("spikeBtn").disabled=true;
+    let t=0,i=0; const speed=2; // sim seconds per tick
+    if(timer)clearInterval(timer);
+    timer=setInterval(()=>{
+      t+=speed;
+      while(i<timeline.length-1 && timeline[i+1][0]<=t) i++;
+      const a=timeline[i], b=timeline[Math.min(i+1,timeline.length-1)];
+      const span=(b[0]-a[0])||1, f=Math.min(1,(t-a[0])/span);
+      const desired=Math.round(a[1]+(b[1]-a[1])*f);
+      const ready=Math.round(a[2]+(b[2]-a[2])*f);
+      const queue=Math.round(a[3]+(b[3]-a[3])*f);
+      paint(desired,ready,queue,t);
+      if(t>=72){clearInterval(timer);timer=null;document.getElementById("spikeBtn").disabled=false;}
+    },140);
+  }
+  document.getElementById("spikeBtn").onclick=run;
+  document.getElementById("resetBtn").onclick=reset;
+  reset();
+})();
+
+/* ---------- optimization chain ---------- */
+(function(){
+  const rows=[
+    {n:"HF transformers",s:"one request at a time",v:0.60,base:true,mult:"1.0×"},
+    {n:"vLLM",s:"continuous batching",v:4.45,mult:"7.4×"},
+    {n:"+ 256 batch slots",s:"KV cache was 11% used",v:7.36,mult:"12.3×"},
+    {n:"+ large-v3-turbo",s:"4 decoder layers",v:13.07,mult:"21.8×"},
+  ];
+  const max=13.07, el=document.getElementById("chain");
+  rows.forEach(r=>{
+    const row=document.createElement("div");row.className="chain-row";
+    row.innerHTML=`<div class="name">${r.n}<small>${r.s}</small></div>
+      <div class="track"><div class="fill ${r.base?'base':''}"></div></div>
+      <div class="val tnum">${r.v.toFixed(2)}<small> req/s · ${r.mult}</small></div>`;
+    el.appendChild(row);
+    requestAnimationFrame(()=>{setTimeout(()=>{row.querySelector(".fill").style.width=(r.v/max*100)+"%";},120);});
+  });
+})();
+
+/* ---------- concurrency ---------- */
+(function(){
+  const data=[
+    {c:1,t:"2.79",p50:362,p99:473,ok:true},
+    {c:2,t:"3.90",p50:525,p99:636,ok:false},
+    {c:8,t:"5.48",p50:1442,p99:1902,ok:false},
+    {c:128,t:"13.07",p50:8500,p99:17000,ok:false},
+  ];
+  const s=document.getElementById("conc"),cv=document.getElementById("concVal"),
+        oT=document.getElementById("oThru"),o5=document.getElementById("oP50"),o9=document.getElementById("oP99"),
+        slo=document.getElementById("slo");
+  function fmt(ms){return ms>=1000?(ms/1000).toFixed(1).replace(/\.0$/,'')+" s":ms+"";}
+  function upd(){
+    const d=data[+s.value]; cv.textContent=d.c; oT.textContent=d.t;
+    o5.textContent=fmt(d.p50); o9.textContent=fmt(d.p99);
+    if(d.ok){slo.className="slo ok";slo.textContent="p99 473 ms — under the 620 ms SLO ✓";}
+    else{slo.className="slo bad";slo.textContent=`p99 ${fmt(d.p99)} — over the 620 ms SLO ✗ (add pods instead)`;}
+  }
+  s.oninput=upd; upd();
+})();
+
+/* ---------- forecast chart ---------- */
+(function(){
+  const D={"minute":[0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,250,255,260,265,270,275,280,285,290,295,300,305,310,315,320,325,330,335,340,345,350,355,360,365,370,375,380,385,390,395,400,405,410,415,420,425,430,435,440,445,450,455,460,465,470,475,480,485,490,495,500,505,510,515,520,525,530,535,540,545,550,555,560,565,570,575,580,585,590,595,600,605,610,615,620,625,630,635,640,645,650,655,660,665,670,675,680,685,690,695,700,705,710,715,720,725,730,735,740,745,750,755,760,765,770,775,780,785,790,795,800,805,810,815,820,825,830,835,840,845,850,855,860,865,870,875,880,885,890,895,900,905,910,915,920,925,930,935,940,945,950,955,960,965,970,975,980,985,990,995,1000,1005,1010,1015,1020,1025,1030,1035,1040,1045,1050,1055,1060,1065,1070,1075,1080,1085,1090,1095,1100,1105,1110,1115,1120,1125,1130,1135,1140,1145,1150,1155,1160,1165,1170,1175,1180,1185,1190,1195,1200,1205,1210,1215,1220,1225,1230,1235,1240,1245,1250,1255,1260,1265,1270,1275,1280,1285,1290,1295,1300,1305,1310,1315,1320,1325,1330,1335,1340,1345,1350,1355,1360,1365,1370,1375,1380,1385,1390,1395,1400,1405,1410,1415,1420,1425,1430,1435],"actual":[650.8,564.3,564.9,534.1,595.0,524.0,536.9,540.3,532.9,506.7,613.1,529.3,562.7,547.6,532.6,531.5,583.7,541.5,522.2,536.3,531.5,518.3,592.7,561.2,645.0,539.2,519.6,512.8,531.6,530.2,551.8,544.7,528.1,507.2,593.3,603.0,620.5,500.6,509.8,485.3,552.4,520.4,514.2,519.7,548.5,488.5,586.2,523.8,508.0,529.3,522.8,493.0,540.8,515.5,532.6,579.1,588.7,541.3,647.0,559.4,560.3,585.4,561.7,543.7,576.0,537.8,550.5,548.2,551.6,540.1,654.1,544.6,701.3,581.1,566.8,546.0,560.3,544.2,569.9,553.9,575.4,545.7,662.6,624.7,713.4,571.7,578.4,578.2,581.1,548.3,577.1,561.8,567.7,561.6,639.6,670.7,595.1,608.6,588.8,570.1,594.9,573.7,555.9,568.7,568.8,581.9,672.3,636.9,638.1,603.9,588.0,565.9,628.0,558.4,585.0,617.1,613.4,578.5,672.8,632.3,630.6,602.0,645.2,607.5,635.9,584.8,592.7,657.4,631.6,613.7,689.1,608.5,686.2,656.4,634.0,597.1,667.0,633.5,627.6,626.4,624.1,648.0,710.5,682.2,675.7,663.0,658.6,607.7,667.3,638.4,640.8,652.0,679.4,670.2,743.2,670.4,734.9,675.8,653.2,634.5,700.2,672.6,660.6,666.2,671.9,649.9,734.8,656.5,674.8,651.5,629.8,595.0,651.9,619.4,656.1,611.1,621.2,586.4,684.5,709.5,699.3,662.2,658.7,648.7,688.5,668.5,654.5,649.7,652.1,647.5,749.0,652.3,752.9,712.2,660.0,633.9,696.6,648.1,676.3,671.5,657.8,646.9,756.5,649.7,718.6,666.2,646.8,608.8,702.7,671.9,711.4,754.5,729.9,717.5,792.9,720.6,811.9,788.9,765.9,721.5,782.8,718.3,721.3,729.8,734.6,722.5,794.6,758.4,817.9,739.4,731.5,709.5,753.8,708.8,716.0,750.0,696.7,686.0,796.6,694.0,761.0,728.1,678.0,680.0,743.4,655.8,699.7,693.3,686.3,659.8,791.2,705.1,770.9,695.3,695.9,697.7,719.6,672.2,684.7,683.2,663.3,668.7,757.7,670.4,757.3,691.5,680.7,698.7,750.4,693.9,714.8,690.1,670.8,670.9,733.2,665.1,747.8,646.3,638.9,609.5,697.8,624.0,649.5,631.1,634.6,622.0,762.6,690.0],"pred":[593.5,545.6,566.1,542.8,561.1,533.3,545.5,522.9,524.5,528.1,553.7,544.9,584.2,559.7,543.4,542.4,546.9,541.7,551.4,534.6,545.7,546.7,579.3,578.1,608.8,577.5,537.9,535.9,525.5,525.0,532.4,539.8,548.6,564.0,563.4,583.3,602.7,545.3,553.6,518.2,515.9,513.7,526.5,527.3,525.2,526.5,569.9,527.5,547.3,520.6,548.3,520.7,532.8,529.5,535.8,547.5,565.3,525.6,578.1,596.6,592.2,573.5,555.5,561.0,555.2,533.4,559.1,546.8,547.3,555.6,588.0,615.1,628.6,573.9,603.2,565.6,562.8,548.8,581.4,552.9,580.4,574.7,643.6,636.4,661.8,580.8,624.5,572.8,576.9,575.3,580.0,591.4,586.0,571.2,620.0,604.5,605.3,579.6,585.1,577.0,586.6,571.3,586.5,577.2,581.6,583.7,587.6,597.0,631.6,607.3,602.2,586.6,588.0,583.9,599.5,579.1,613.9,592.9,616.9,616.7,660.7,603.7,619.7,601.2,619.8,602.7,641.6,606.2,605.8,603.8,628.1,627.8,657.6,616.2,634.7,622.9,634.0,605.7,639.9,628.5,652.0,653.1,665.3,679.3,707.8,670.0,670.0,635.5,630.6,627.1,641.4,645.3,671.1,658.1,685.2,681.8,714.7,678.3,675.7,668.2,666.1,648.8,677.9,672.0,706.3,697.8,705.4,720.1,742.6,694.4,671.7,653.7,644.5,626.1,629.0,636.5,660.2,652.2,680.5,652.0,669.5,634.4,653.2,622.5,630.6,618.7,646.8,637.2,643.3,641.6,669.2,673.3,715.1,673.3,655.5,653.0,649.7,646.4,662.4,645.6,677.3,656.3,690.1,698.6,736.0,683.5,676.9,654.8,663.4,644.9,683.8,692.2,716.5,691.8,710.5,710.4,764.8,701.7,736.0,732.9,729.3,687.5,714.0,691.8,702.1,698.6,720.0,721.1,746.2,719.0,700.9,698.1,688.7,676.6,705.9,683.5,684.2,711.9,717.7,722.8,729.1,692.3,702.0,699.3,677.6,667.4,692.4,662.6,675.3,678.4,691.2,675.5,711.4,666.3,677.4,682.0,675.2,676.0,686.4,669.0,683.3,678.5,694.6,691.8,740.0,665.3,677.6,648.1,669.1,666.7,700.8,662.1,674.0,667.8,668.3,673.4,685.3,656.5,662.9,643.1,659.6,618.9,628.8,612.7,646.8,622.3,676.3,669.1]};
+  const W=1000,H=300,ml=44,mr=12,mt=14,mb=28;
+  const xs=D.minute, ya=D.actual, yp=D.pred;
+  const xmax=1440, ymin=440, ymax=860;
+  const X=m=>ml+(m/xmax)*(W-ml-mr);
+  const Y=v=>mt+(1-(v-ymin)/(ymax-ymin))*(H-mt-mb);
+  const path=arr=>arr.map((v,i)=>(i?"L":"M")+X(xs[i]).toFixed(1)+" "+Y(v).toFixed(1)).join(" ");
+  let grid="";
+  for(let g=500;g<=800;g+=100){const y=Y(g);grid+=`<line x1="${ml}" y1="${y}" x2="${W-mr}" y2="${y}" stroke="var(--grid)"/><text x="${ml-8}" y="${y+4}" text-anchor="end" fill="var(--faint)" font-size="11" font-family="IBM Plex Mono">${g}k</text>`;}
+  let xt="";
+  for(let h=0;h<=24;h+=4){const x=X(h*60);xt+=`<text x="${x}" y="${H-8}" text-anchor="middle" fill="var(--faint)" font-size="11" font-family="IBM Plex Mono">${h}:00</text>`;}
+  document.getElementById("fcChart").innerHTML=
+    `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="forecast versus actual traffic">
+      ${grid}${xt}
+      <path d="${path(ya)}" fill="none" stroke="var(--ink)" stroke-width="1.6"/>
+      <path d="${path(yp)}" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-dasharray="1 0" opacity=".9"/>
+      <g font-family="IBM Plex Sans" font-size="12">
+        <rect x="${W-186}" y="${mt}" width="174" height="42" rx="7" fill="var(--surface-2)" stroke="var(--border)"/>
+        <line x1="${W-176}" y1="${mt+15}" x2="${W-158}" y2="${mt+15}" stroke="var(--ink)" stroke-width="1.6"/>
+        <text x="${W-152}" y="${mt+19}" fill="var(--muted)">actual traffic</text>
+        <line x1="${W-176}" y1="${mt+32}" x2="${W-158}" y2="${mt+32}" stroke="var(--accent)" stroke-width="1.8"/>
+        <text x="${W-152}" y="${mt+36}" fill="var(--muted)">forecast (10 min ahead)</text>
+      </g>
+    </svg>`;
+})();
+
+/* ---------- in-browser Whisper (mic) ---------- */
+(function(){
+  const statusEl=document.getElementById("micStatus"),pctEl=document.getElementById("micPct"),
+        recBtn=document.getElementById("rec"),trEl=document.getElementById("transcript");
+  let transcriber=null, media=null, chunks=[], recording=false, mediaRec=null;
+
+  function setStatus(t){statusEl.innerHTML=t;}
+  function setText(t,cls){trEl.textContent=t; trEl.className="transcript"+(cls?" "+cls:"");}
+
+  async function loadModel(){
+    try{
+      const {pipeline,env}=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.0");
+      env.allowLocalModels=false;
+      transcriber=await pipeline("automatic-speech-recognition","Xenova/whisper-tiny.en",{
+        progress_callback:(p)=>{ if(p.status==="progress"&&p.total){pctEl.textContent=Math.round(p.progress)+"%";} }
+      });
+      pctEl.textContent=""; setStatus('Ready. <span class="mono">hold to speak →</span>'); recBtn.disabled=false;
+    }catch(e){
+      setStatus('In-browser model unavailable in this browser. '+(e&&e.message?('<span class="mono">'+e.message+'</span>'):''));
+    }
+  }
+
+  async function toAudio(blob){
+    const ab=await blob.arrayBuffer();
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const buf=await ctx.decodeAudioData(ab);
+    // resample to 16k mono
+    const off=new OfflineAudioContext(1,Math.ceil(buf.duration*16000),16000);
+    const src=off.createBufferSource(); src.buffer=buf; src.connect(off.destination); src.start();
+    const r=await off.startRendering(); return r.getChannelData(0);
+  }
+
+  async function transcribe(blob){
+    setText("transcribing…","empty");
+    try{
+      const audio=await toAudio(blob);
+      const out=await transcriber(audio);
+      setText((out.text||"").trim()||"(silence)", (out.text||"").trim()?"":"empty");
+    }catch(e){ setText("Could not transcribe: "+(e.message||e),"empty"); }
+  }
+
+  async function startRec(){
+    if(!transcriber||recording) return;
+    try{
+      media=await navigator.mediaDevices.getUserMedia({audio:true});
+    }catch(e){ setStatus("Microphone permission denied."); return; }
+    chunks=[]; mediaRec=new MediaRecorder(media);
+    mediaRec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    mediaRec.onstop=()=>{ media.getTracks().forEach(t=>t.stop());
+      transcribe(new Blob(chunks,{type:mediaRec.mimeType||"audio/webm"})); };
+    mediaRec.start(); recording=true; recBtn.classList.add("recording");
+    setStatus('<span style="color:var(--crit)">● recording</span> — release to transcribe');
+  }
+  function stopRec(){ if(!recording)return; recording=false; recBtn.classList.remove("recording");
+    setStatus("processing…"); try{mediaRec.stop();}catch(e){} }
+
+  recBtn.addEventListener("mousedown",startRec);
+  recBtn.addEventListener("touchstart",e=>{e.preventDefault();startRec();},{passive:false});
+  ["mouseup","mouseleave"].forEach(ev=>recBtn.addEventListener(ev,stopRec));
+  recBtn.addEventListener("touchend",e=>{e.preventDefault();stopRec();},{passive:false});
+
+  // sample buttons: speak via TTS, capture with a synthetic note (demo fallback if no mic)
+  document.querySelectorAll(".samples [data-say]").forEach(b=>{
+    b.onclick=()=>{ setText('"'+b.dataset.say+'"  — (sample text; use the mic to transcribe your own speech)',""); };
+  });
+
+  loadModel();
+})();
+</script>
+</body>
+</html>
