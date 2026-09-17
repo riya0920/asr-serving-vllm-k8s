@@ -8,23 +8,23 @@ shipped through Argo CD with a word-error-rate gate in CI.
 
 ### In plain terms
 
-**What it is:** a speech-to-text service — audio goes in, written text comes out. It runs OpenAI's
-**Whisper** model (the "ASR", automatic speech recognition, engine) and is built to serve many
+**What it is:** a speech-to-text service. Audio goes in, written text comes out. It runs OpenAI's
+**Whisper** model (the **ASR**, automatic speech recognition, engine) and is built to serve many
 users at once.
 
-**The hard part:** traffic arrives in sudden bursts — it jumps about **8×** in seconds, then goes
+**The hard part:** traffic arrives in sudden bursts. It jumps about **8×** in seconds, then goes
 quiet. Too few GPUs and requests pile up; too many and you pay for idle hardware.
 
 **What this project does about it, all measured on real rented GPUs:**
 
-- **Fast on one GPU** — the **vLLM** engine with continuous batching gets about **22× more
+- **Fast on one GPU.** The **vLLM** engine with continuous batching gets about **22× more
   throughput** than a naive one-request-at-a-time baseline.
-- **Autoscaling** — the fleet adds and removes GPU **pods** automatically on **Kubernetes**, driven
-  by the number of requests *waiting* (queue depth) via **KEDA** + **Prometheus**. It absorbs an
-  8× spike by scaling **2 → 16 pods in under 2 seconds**, and cuts **cost per audio hour ~92%**.
-- **Ships safely** — a **CI/CD** pipeline with a word-error-rate (**WER**) quality gate blocks any
-  release that transcribes worse, and **Argo CD** GitOps + **canary** deploys roll new versions out
-  gradually with **automatic rollback in 22 seconds**.
+- **Autoscaling.** The fleet adds and removes GPU **pods** automatically on **Kubernetes**, driven
+  by the number of requests *waiting* (queue depth) via **KEDA** and **Prometheus**. It absorbs an
+  8× spike by scaling from **2 to 16 pods in under 2 seconds**, and cuts **cost per audio hour ~92%**.
+- **Ships safely.** A **CI/CD** pipeline with a word-error-rate (**WER**) quality gate blocks any
+  release that transcribes worse, and **Argo CD** GitOps plus **canary** deploys roll new versions
+  out gradually with **automatic rollback in 22 seconds**.
 
 **Stack:** Whisper · vLLM · Kubernetes · KEDA · Prometheus · Argo CD · Argo Rollouts · Terraform ·
 GitHub Actions CI/CD. Measured on rented A40, H100 NVL and A10 GPUs.
