@@ -4,6 +4,7 @@ Speech-to-text serving stack. Whisper-Large on vLLM, autoscaled on Kubernetes by
 shipped through Argo CD with a word-error-rate gate in CI.
 
 ![ci](https://github.com/riya0920/asr-serving-vllm-k8s/actions/workflows/ci.yml/badge.svg)
+[![live demo](https://img.shields.io/badge/live_demo-open-0e7490)](https://riya0920.github.io/asr-serving-vllm-k8s/demo/)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/riya0920/asr-serving-vllm-k8s/blob/main/notebooks/demo.ipynb)
 
 ### In plain terms
@@ -42,7 +43,12 @@ Numbers below are measured on rented A40, H100 NVL and A10 GPUs. Raw artifacts i
 
 ## Demo
 
-[**Run it in Colab**](https://colab.research.google.com/github/riya0920/asr-serving-vllm-k8s/blob/main/notebooks/demo.ipynb): free T4, about 5 minutes. Builds a golden set from LibriSpeech, transcribes a clip,
+[**▶ Open the live demo**](https://riya0920.github.io/asr-serving-vllm-k8s/demo/): an interactive
+console, no setup. Trigger the 8× autoscaling spike and watch the fleet scale 2 → 16, sweep the
+latency/throughput dial, see the traffic forecaster on a held-out day, and transcribe your own voice
+with a model running in your browser.
+
+Prefer a notebook? [**Run it in Colab**](https://colab.research.google.com/github/riya0920/asr-serving-vllm-k8s/blob/main/notebooks/demo.ipynb): free T4, about 5 minutes. Builds a golden set from LibriSpeech, transcribes a clip,
 scores it with the same WER code the CI gate uses, and measures the batching speedup.
 
 Locally, start the server and transcribe a 30-second clip:
