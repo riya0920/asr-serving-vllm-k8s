@@ -100,6 +100,7 @@ section.card{background:var(--surface); border:1px solid var(--border); border-r
 
 /* spike sim */
 .sim-top{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:16px}
+.sim-controls{display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px; margin-top:16px}
 .readout{display:flex; gap:20px; flex-wrap:wrap; margin-left:auto}
 .readout div{font-size:12px; color:var(--muted)}
 .readout b{font-family:"IBM Plex Mono",monospace; font-size:20px; color:var(--ink); display:block; font-weight:600}
@@ -208,25 +209,32 @@ footer a{color:var(--accent-ink)}
 
   <!-- SPIKE SIM -->
   <section class="card">
-    <h2><span class="tag">autoscaler</span> An 8× spike, scaling 2 → 16 pods</h2>
-    <p class="sub">Meeting traffic jumps ~8× on the hour. The fleet scales on <b>queue depth</b> -
-       requests waiting - not GPU utilisation, because utilisation pins at 100% whether 2 or 200 are
-       queued. This replays the recorded KEDA reaction: scale-up begins one 2-second sample after the
-       spike lands.</p>
+    <h2><span class="tag">autoscaler</span> Drive a traffic spike, watch it scale</h2>
+    <p class="sub">Pick a spike size and trigger it. The fleet scales on <b>queue depth</b> (requests
+       waiting), not GPU utilisation, because utilisation pins at 100% whether 2 or 200 are queued.
+       This is a live simulation calibrated to the measured per-GPU throughput (~8 req/s at the latency
+       SLO) and the real KEDA policy: min 2, max 16 pods, scale-up on queue depth, cold start. Push it
+       past ~10× and 16 pods can no longer keep up, exactly as a real maxReplicas ceiling behaves.</p>
 
-    <div class="sim-top">
-      <button class="btn primary" id="spikeBtn">▶ Trigger 8× spike</button>
-      <button class="btn" id="resetBtn">↺ Reset</button>
-      <div class="readout">
-        <div>elapsed<b class="clock mono tnum" id="clk">0s</b></div>
-        <div>queue depth<b class="mono tnum" id="qd">0</b></div>
-        <div>desired<b class="mono tnum" id="des">2</b></div>
-        <div>ready<b class="mono tnum" id="rdy">2</b></div>
+    <div class="sim-controls">
+      <div class="slider-wrap" style="flex:1; min-width:220px">
+        <label>spike size: <b class="mono" id="spikeVal">8×</b> baseline load</label>
+        <input type="range" id="spike" min="1" max="15" step="1" value="8">
       </div>
+      <button class="btn primary" id="spikeBtn">▶ Trigger spike</button>
+      <button class="btn" id="resetBtn">↺ Reset</button>
+    </div>
+
+    <div class="readout" style="margin-top:18px; margin-left:0">
+      <div>elapsed<b class="clock mono tnum" id="clk">0s</b></div>
+      <div>arrivals<b class="mono tnum" id="arr">11 <small>req/s</small></b></div>
+      <div>queue depth<b class="mono tnum" id="qd">0</b></div>
+      <div>desired<b class="mono tnum" id="des">2</b></div>
+      <div>ready<b class="mono tnum" id="rdy">2</b></div>
     </div>
 
     <div class="qwrap">
-      <div class="qlabel"><span>requests waiting (queue depth)</span><span class="mono" id="qmax">peak ≈ 80</span></div>
+      <div class="qlabel"><span>requests waiting (queue depth)</span><span class="mono" id="qmax">peak 0</span></div>
       <div class="qbar"><div class="qfill" id="qfill"></div></div>
     </div>
 
@@ -236,8 +244,8 @@ footer a{color:var(--accent-ink)}
       <span><span class="swatch" style="background:var(--accent-soft);border-color:var(--accent)"></span>ready GPU pod</span>
       <span><span class="swatch" style="background:var(--warn-soft);border-color:var(--warn)"></span>warming (cold start)</span>
       <span><span class="swatch" style="background:var(--surface-2)"></span>not provisioned</span>
-      <span class="mono" id="simnote" style="margin-left:auto">min 2 · max 16 · poll 5s · scale-up window 0s</span>
     </div>
+    <div class="slo ok" id="simSlo" style="margin-top:14px">Idle. Choose a spike size and press Trigger.</div>
   </section>
 
   <!-- OPTIMIZATION CHAIN -->
@@ -328,44 +336,94 @@ footer a{color:var(--accent-ink)}
   if(matchMedia("(prefers-reduced-motion:reduce)").matches) document.body.classList.add("reduced");
 })();
 
-/* ---------- spike simulator (real KEDA timeline) ---------- */
+/* ---------- variable spike simulator (calibrated to measured throughput + KEDA policy) ---------- */
 (function(){
-  const timeline=[ /* [t sec, desired, ready, queue] */
-    [0,2,2,0],[44,2,2,0],[46,5,2,28],[50,5,3,55],[56,10,5,78],[62,13,8,60],
-    [66,16,10,40],[70,16,14,14],[72,16,16,0]];
-  const podsEl=document.getElementById("pods");
-  const pod=[];
-  for(let i=0;i<16;i++){const d=document.createElement("div");d.className="pod";podsEl.appendChild(d);pod.push(d);}
-  const clk=document.getElementById("clk"),qd=document.getElementById("qd"),des=document.getElementById("des"),
-        rdy=document.getElementById("rdy"),qfill=document.getElementById("qfill");
-  let timer=null;
-  function paint(desired,ready,queue,t){
-    clk.textContent=t+"s"; qd.textContent=queue; des.textContent=desired; rdy.textContent=ready;
-    qfill.style.width=Math.min(100,queue/80*100)+"%";
-    for(let i=0;i<16;i++){
-      pod[i].className="pod"+(i<ready?" ready":(i<desired?" warming":""));
+  const S=8;              // req/s each ready pod serves at the latency SLO (from measured throughput)
+  const HEAD=0.75;        // KEDA targets ~75% occupancy (headroom for the next spike)
+  const MINP=2, MAXP=16;  // min/max replicas, from infra/keda/scaledobject.yaml
+  const WARM=10;          // cold-start seconds before a new pod is ready (accelerated)
+  const POLL=5;           // KEDA polling interval, seconds
+  const A0=Math.round(MINP*S*0.7);   // baseline arrivals ~11 req/s, comfortably held by 2 pods
+  const MAXCAP=MAXP*S;    // fleet ceiling ~128 req/s
+
+  const $=id=>document.getElementById(id);
+  const spike=$("spike"),spikeVal=$("spikeVal"),clk=$("clk"),arrEl=$("arr"),qd=$("qd"),
+        des=$("des"),rdy=$("rdy"),qfill=$("qfill"),qmax=$("qmax"),slo=$("simSlo");
+  const podsEl=$("pods"), pod=[];
+  for(let i=0;i<MAXP;i++){const d=document.createElement("div");d.className="pod";podsEl.appendChild(d);pod.push(d);}
+
+  let timer=null, st=null;
+  function blank(){return {t:0,ready:MINP,warming:[],queue:0,arrival:A0,desired:MINP,peakQ:0,lastPoll:0,mult:+spike.value};}
+  function paintPods(ready,warming){
+    for(let i=0;i<MAXP;i++) pod[i].className="pod"+(i<ready?" ready":(i<ready+warming?" warming":""));
+  }
+  function render(){
+    clk.textContent=Math.round(st.t)+"s";
+    arrEl.innerHTML=Math.round(st.arrival)+' <small>req/s</small>';
+    qd.textContent=Math.round(st.queue);
+    des.textContent=st.desired; rdy.textContent=st.ready;
+    st.peakQ=Math.max(st.peakQ,st.queue);
+    qmax.textContent="peak "+Math.round(st.peakQ);
+    qfill.style.width=Math.min(100, st.queue/Math.max(60,st.peakQ)*100)+"%";
+    paintPods(st.ready, st.warming.length);
+  }
+  function reset(){
+    if(timer)clearInterval(timer); timer=null; st=blank();
+    spikeVal.textContent=spike.value+"×"; render();
+    slo.className="slo ok"; slo.textContent="Idle. Choose a spike size and press Trigger.";
+    $("spikeBtn").disabled=false;
+  }
+  function step(dt){
+    st.t+=dt;
+    const targetA=A0*st.mult;                        // step function: arrivals jump toward target
+    st.arrival+=(targetA-st.arrival)*Math.min(1,dt/1.5);
+    st.queue=Math.max(0, st.queue + st.arrival*dt - st.ready*S*dt);   // fill vs serve
+    st.warming=st.warming.filter(w=>{ w.left-=dt; if(w.left<=0){st.ready=Math.min(MAXP,st.ready+1); return false;} return true;});
+    if(st.t-st.lastPoll>=POLL){                       // KEDA evaluation
+      st.lastPoll=st.t;
+      let d=Math.ceil(st.arrival/S/HEAD);             // scale to the load, with headroom
+      if(st.queue>S*4) d+=2;                          // small surge while a backlog is draining
+      st.desired=Math.max(MINP,Math.min(MAXP,d));
+      const deficit=st.desired-(st.ready+st.warming.length);
+      if(deficit>0){ const add=Math.min(deficit, Math.max(4, st.ready)); // scale-up: +4 or +100%
+        for(let k=0;k<add && st.ready+st.warming.length<MAXP;k++) st.warming.push({left:WARM}); }
     }
   }
-  function reset(){ if(timer)clearInterval(timer); timer=null; paint(2,2,0,0);
-    document.getElementById("spikeBtn").disabled=false; }
-  function run(){
-    document.getElementById("spikeBtn").disabled=true;
-    let t=0,i=0; const speed=2; // sim seconds per tick
-    if(timer)clearInterval(timer);
-    timer=setInterval(()=>{
-      t+=speed;
-      while(i<timeline.length-1 && timeline[i+1][0]<=t) i++;
-      const a=timeline[i], b=timeline[Math.min(i+1,timeline.length-1)];
-      const span=(b[0]-a[0])||1, f=Math.min(1,(t-a[0])/span);
-      const desired=Math.round(a[1]+(b[1]-a[1])*f);
-      const ready=Math.round(a[2]+(b[2]-a[2])*f);
-      const queue=Math.round(a[3]+(b[3]-a[3])*f);
-      paint(desired,ready,queue,t);
-      if(t>=72){clearInterval(timer);timer=null;document.getElementById("spikeBtn").disabled=false;}
-    },140);
+  function verdict(){
+    const overCap=st.arrival>MAXCAP*0.98;
+    const settled=st.queue<A0*0.6 && st.t>10;
+    if(overCap && st.queue>MAXCAP){
+      slo.className="slo bad";
+      slo.textContent="Beyond fleet capacity: 16 pods serve ~"+MAXCAP+" req/s but "+st.mult+"× needs "+Math.round(st.arrival)+". Queue keeps growing, requests would drop. Raise maxReplicas.";
+      return "stop-bad";
+    }
+    if(st.queue>st.ready*S*1.5){
+      slo.className="slo bad";
+      slo.textContent="Transient SLO breach: queue "+Math.round(st.queue)+", pods still warming. p99 elevated until capacity catches up.";
+      return "run";
+    }
+    if(settled){
+      slo.className="slo ok";
+      slo.textContent="Absorbed "+st.mult+"× with "+st.ready+" pods. Queue drained, p99 back under the 620 ms SLO.";
+      return "stop-ok";
+    }
+    slo.className="slo ok";
+    slo.textContent="Scaling: desired "+st.desired+", "+st.ready+" ready, "+st.warming.length+" warming.";
+    return "run";
   }
-  document.getElementById("spikeBtn").onclick=run;
-  document.getElementById("resetBtn").onclick=reset;
+  function run(){
+    reset(); st.mult=+spike.value; $("spikeBtn").disabled=true;
+    timer=setInterval(()=>{
+      step(1.0); render();
+      const v=verdict();
+      if((v==="stop-ok") || (v==="stop-bad" && st.t>30) || st.t>110){
+        clearInterval(timer); timer=null; $("spikeBtn").disabled=false;
+      }
+    },120);   // 1 sim-second per 120 ms
+  }
+  spike.oninput=()=>{ spikeVal.textContent=spike.value+"×"; };
+  $("spikeBtn").onclick=run;
+  $("resetBtn").onclick=reset;
   reset();
 })();
 
